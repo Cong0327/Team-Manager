@@ -10,11 +10,12 @@ export type Team = {
 };
 
 export type TeamMemberStatus = "pending" | "approved";
+export type TeamMemberRole = "owner" | "manager" | "member";
 
 export type TeamMembership = {
   id: string;
   team_id: string;
-  role: "owner" | "member";
+  role: TeamMemberRole;
   status: TeamMemberStatus;
   team: Team;
 };
@@ -47,6 +48,22 @@ export async function getPendingRequests(teamId: string) {
     .select("id, user_id, created_at, profile:profiles(email)")
     .eq("team_id", teamId)
     .eq("status", "pending");
+
+  if (error || !data) return [];
+  return data.map((row) => ({
+    ...row,
+    profile: Array.isArray(row.profile) ? row.profile[0] : row.profile,
+  }));
+}
+
+// 승인된 팀원 목록 (매니저 지정 UI에서 사용). 이메일도 함께 가져온다.
+export async function getApprovedMembers(teamId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("team_members")
+    .select("id, user_id, role, profile:profiles(email)")
+    .eq("team_id", teamId)
+    .eq("status", "approved");
 
   if (error || !data) return [];
   return data.map((row) => ({

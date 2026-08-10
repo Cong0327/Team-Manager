@@ -46,6 +46,10 @@ exception
   when duplicate_object then null;
 end $$;
 
+-- 기존에 team_member_role을 이미 만든 프로젝트를 위한 추가 (일정 수정 권한을 owner 외에
+-- manager에게도 주기 위해 필요). 새로 스키마를 처음 적용하는 경우에도 안전하게 실행된다.
+alter type team_member_role add value if not exists 'manager';
+
 do $$ begin
   create type team_member_status as enum ('pending', 'approved');
 exception
@@ -104,3 +108,89 @@ create policy "team_members_delete_self_or_owner" on team_members
       select 1 from teams t where t.id = team_members.team_id and t.owner_id = auth.uid()
     )
   );
+
+-- 팀장이 승인된 팀원의 role을 owner/manager/member로 바꿀 수 있게 한다 (매니저 지정용).
+-- 기존 team_members_update_owner 정책은 status 변경(가입 승인)용으로 이미 있으므로 재사용된다.
+
+-- 일정(이벤트) 관리. 시간/내용은 owner·manager만 만들고 고칠 수 있고,
+-- 참여 여부(event_participants)는 팀원 누구나 본인 것만 넣고 뺄 수 있다.
+create table if not exists events (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references teams(id) on delete cascade,
+  title text not null,
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists event_participants (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (event_id, user_id)
+);
+
+alter table events enable row level security;
+alter table event_participants enable row level security;
+
+create policy "events_select_team_members" on events
+  for select to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = events.team_id and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+create policy "events_insert_owner_manager" on events
+  for insert to authenticated with check (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = events.team_id and tm.user_id = auth.uid()
+        and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  );
+
+create policy "events_update_owner_manager" on events
+  for update to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = events.team_id and tm.user_id = auth.uid()
+        and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  );
+
+create policy "events_delete_owner_manager" on events
+  for delete to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = events.team_id and tm.user_id = auth.uid()
+        and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  );
+
+create policy "event_participants_select_team_members" on event_participants
+  for select to authenticated using (
+    exists (
+      select 1 from events e
+      join team_members tm on tm.team_id = e.team_id
+      where e.id = event_participants.event_id
+        and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+-- 참여는 본인 명의로만, 그리고 그 팀의 승인된 멤버여야 신청 가능.
+create policy "event_participants_insert_self" on event_participants
+  for insert to authenticated with check (
+    user_id = auth.uid()
+    and exists (
+      select 1 from events e
+      join team_members tm on tm.team_id = e.team_id
+      where e.id = event_participants.event_id
+        and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+create policy "event_participants_delete_self" on event_participants
+  for delete to authenticated using (user_id = auth.uid());

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import type { TeamEvent } from "@/lib/events";
+import EventModal from "./event-modal";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -14,11 +16,28 @@ function isSameDate(a: Date, b: Date) {
   );
 }
 
-// 날짜 칸은 나중에 일정 내용(제목 몇 개)을 넣을 수 있도록 세로 공간을 넉넉히 잡아둔다.
-// 실제 일정 데이터 연동은 별도 작업.
-export default function Calendar() {
+function dateKey(d: Date) {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function formatTime(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+type ModalState = { date: Date; event?: TeamEvent };
+
+type Props = {
+  teamId: string;
+  events: TeamEvent[];
+  canManage: boolean;
+  currentUserId: string;
+};
+
+export default function Calendar({ teamId, events, canManage, currentUserId }: Props) {
   const today = new Date();
   const [viewDate, setViewDate] = useState(new Date());
+  const [modal, setModal] = useState<ModalState | null>(null);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -31,6 +50,14 @@ export default function Calendar() {
     ...Array(startWeekday).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
+
+  const eventsByDay = new Map<string, TeamEvent[]>();
+  for (const event of events) {
+    const key = dateKey(new Date(event.starts_at));
+    const list = eventsByDay.get(key) ?? [];
+    list.push(event);
+    eventsByDay.set(key, list);
+  }
 
   const goToPrevMonth = () => setViewDate(new Date(year, month - 1, 1));
   const goToNextMonth = () => setViewDate(new Date(year, month + 1, 1));
@@ -87,32 +114,66 @@ export default function Calendar() {
           const cellDate = new Date(year, month, day);
           const isToday = isSameDate(cellDate, today);
           const weekday = cellDate.getDay();
+          const dayEvents = eventsByDay.get(dateKey(cellDate)) ?? [];
 
           return (
             <div
               key={day}
-              className={`flex min-h-24 flex-col gap-1 border-b border-r border-black/[.05] p-2 transition-colors hover:bg-black/[.02] dark:border-white/[.06] dark:hover:bg-white/[.04] ${
+              className={`group flex min-h-24 flex-col gap-1 border-b border-r border-black/[.05] p-2 transition-colors hover:bg-black/[.02] dark:border-white/[.06] dark:hover:bg-white/[.04] ${
                 isToday ? "bg-foreground/[.04] dark:bg-white/[.06]" : ""
               }`}
             >
-              <span
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-sm ${
-                  isToday
-                    ? "bg-foreground font-semibold text-background"
-                    : weekday === 0
-                      ? "text-red-500/90"
-                      : weekday === 6
-                        ? "text-blue-500/90"
-                        : "text-zinc-700 dark:text-zinc-300"
-                }`}
-              >
-                {day}
-              </span>
-              {/* 일정 항목은 여기에 표시될 예정 (미구현) */}
+              <div className="flex items-center justify-between">
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-sm ${
+                    isToday
+                      ? "bg-foreground font-semibold text-background"
+                      : weekday === 0
+                        ? "text-red-500/90"
+                        : weekday === 6
+                          ? "text-blue-500/90"
+                          : "text-zinc-700 dark:text-zinc-300"
+                  }`}
+                >
+                  {day}
+                </span>
+                {canManage && (
+                  <button
+                    onClick={() => setModal({ date: cellDate })}
+                    aria-label="일정 추가"
+                    className="hidden h-5 w-5 items-center justify-center rounded text-zinc-400 hover:bg-black/[.06] hover:text-foreground group-hover:flex dark:hover:bg-white/[.1]"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-0.5">
+                {dayEvents.map((event) => (
+                  <button
+                    key={event.id}
+                    onClick={() => setModal({ date: cellDate, event })}
+                    className="truncate rounded bg-foreground/[.08] px-1.5 py-0.5 text-left text-[11px] leading-tight text-foreground hover:bg-foreground/[.15] dark:bg-white/[.1] dark:hover:bg-white/[.18]"
+                  >
+                    {formatTime(event.starts_at)} {event.title} ({event.participant_count})
+                  </button>
+                ))}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {modal && (
+        <EventModal
+          teamId={teamId}
+          date={modal.date}
+          event={modal.event}
+          canManage={canManage}
+          currentUserId={currentUserId}
+          onClose={() => setModal(null)}
+        />
+      )}
     </div>
   );
 }

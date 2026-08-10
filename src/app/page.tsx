@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { getMyTeamMembership, getPendingRequests } from "@/lib/teams";
+import { getMyTeamMembership, getPendingRequests, getApprovedMembers } from "@/lib/teams";
+import { getTeamEvents } from "@/lib/events";
 import ApproveRequestButton from "./approve-request-button";
+import MemberRoleButton from "./member-role-button";
 import Calendar from "./calendar";
 
 // 진입점 라우팅: 비로그인 -> /login, 팀 없음/대기중 -> /team, 팀 있음 -> 대시보드.
@@ -14,6 +16,9 @@ export default async function Home() {
 
   const { team, role } = membership;
   const pendingRequests = role === "owner" ? await getPendingRequests(team.id) : [];
+  const approvedMembers = role === "owner" ? await getApprovedMembers(team.id) : [];
+  const events = await getTeamEvents(team.id);
+  const canManageEvents = role === "owner" || role === "manager";
 
   return (
     <main className="flex flex-1 flex-col gap-6 px-6 py-10">
@@ -37,7 +42,31 @@ export default async function Home() {
         </div>
       )}
 
-      <Calendar />
+      {role === "owner" && approvedMembers.length > 0 && (
+        <div className="flex flex-col gap-2 rounded border border-black/[.1] p-4 dark:border-white/[.15]">
+          <h2 className="text-sm font-semibold">팀원 관리</h2>
+          {approvedMembers.map((member) => (
+            <div key={member.id} className="flex items-center justify-between gap-3 text-sm">
+              <span>
+                {member.profile?.email ?? member.user_id}
+                {member.role === "owner" && (
+                  <span className="ml-2 text-xs text-zinc-500">(팀장)</span>
+                )}
+              </span>
+              {member.role !== "owner" && (
+                <MemberRoleButton memberId={member.id} currentRole={member.role} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Calendar
+        teamId={team.id}
+        events={events}
+        canManage={canManageEvents}
+        currentUserId={user.id}
+      />
     </main>
   );
 }
