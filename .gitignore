@@ -47,5 +47,8 @@ next-env.d.ts
 # project docs kept local-only
 CLAUDE.md
 
+# local work-log history (per-day summaries, not for the repo)
+/history/
+
 # personal Claude Code permission allowlist (local-only)
 .claude/settings.local.json
