@@ -3,6 +3,10 @@ import { getCurrentUser } from "@/lib/supabase/server";
 import LinkKakaoButton from "./link-kakao-button";
 import LogoutButton from "./logout-button";
 
+// 로그인 페이지와 동일한 이유(KOE205)로 이메일 동의항목 심사 전까지 숨긴다.
+// CLAUDE.md의 Auth 절 참고.
+const KAKAO_LINK_ENABLED = false;
+
 export default async function AccountPage() {
   const user = await getCurrentUser();
 
@@ -21,7 +25,7 @@ export default async function AccountPage() {
             카카오 연동됨
           </span>
         ) : (
-          <LinkKakaoButton />
+          KAKAO_LINK_ENABLED && <LinkKakaoButton />
         )}
       </div>
 

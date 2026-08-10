@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// Supabase의 카카오 로그인은 account_email 스코프를 강제로 요청하는데, 이 앱은 아직
+// 카카오계정(이메일) 동의항목 심사 전이라 눌러도 KOE205로 무조건 실패한다.
+// 심사 통과 전까지 버튼을 숨긴다 (CLAUDE.md의 Auth 절 참고).
+const KAKAO_LOGIN_ENABLED = false;
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -73,19 +78,23 @@ export default function LoginPage() {
           {loading ? "로그인 중..." : "로그인"}
         </button>
 
-        <div className="my-1 flex items-center gap-2 text-xs text-zinc-500">
-          <div className="h-px flex-1 bg-black/[.1] dark:bg-white/[.15]" />
-          또는
-          <div className="h-px flex-1 bg-black/[.1] dark:bg-white/[.15]" />
-        </div>
+        {KAKAO_LOGIN_ENABLED && (
+          <>
+            <div className="my-1 flex items-center gap-2 text-xs text-zinc-500">
+              <div className="h-px flex-1 bg-black/[.1] dark:bg-white/[.15]" />
+              또는
+              <div className="h-px flex-1 bg-black/[.1] dark:bg-white/[.15]" />
+            </div>
 
-        <button
-          type="button"
-          onClick={handleKakaoLogin}
-          className="rounded bg-[#FEE500] px-3 py-2 text-black"
-        >
-          카카오로 로그인
-        </button>
+            <button
+              type="button"
+              onClick={handleKakaoLogin}
+              className="rounded bg-[#FEE500] px-3 py-2 text-black"
+            >
+              카카오로 로그인
+            </button>
+          </>
+        )}
 
         <Link href="/signup" className="text-center text-sm underline">
           계정이 없으신가요? 회원가입
