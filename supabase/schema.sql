@@ -44,13 +44,15 @@ create table if not exists teams (
 );
 
 do $$ begin
-  create type team_member_role as enum ('owner', 'member');
+  create type team_member_role as enum ('owner', 'member', 'manager');
 exception
   when duplicate_object then null;
 end $$;
 
--- 기존에 team_member_role을 이미 만든 프로젝트를 위한 추가 (일정 수정 권한을 owner 외에
--- manager에게도 주기 위해 필요). 새로 스키마를 처음 적용하는 경우에도 안전하게 실행된다.
+-- team_member_role을 'owner','member'만으로 이미 만든 적이 있는 프로젝트를 위한 보정.
+-- ⚠️ ALTER TYPE ... ADD VALUE는 같은 트랜잭션 안에서 그 값을 바로 못 쓴다(Postgres 제약).
+-- 이 줄에서 "unsafe use of new value" 에러가 나면, 이 한 줄만 따로 실행해서 커밋한 뒤
+-- 파일 전체를 다시 실행한다. 이미 'manager'가 있으면 이 줄은 아무 일도 하지 않는다.
 alter type team_member_role add value if not exists 'manager';
 
 do $$ begin
