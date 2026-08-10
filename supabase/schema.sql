@@ -1,5 +1,7 @@
 -- 팀 생성/가입 기능을 위한 스키마.
 -- Supabase 대시보드 > SQL Editor에 붙여넣어 실행한다 (CLI 마이그레이션 대신 수동 적용).
+-- 파일 전체를 여러 번 다시 실행해도 안전하도록(idempotent) 작성돼 있다 —
+-- create policy는 원래 재실행이 안 되므로 매번 drop policy if exists 후 다시 만든다.
 
 create extension if not exists pgcrypto;
 
@@ -12,6 +14,7 @@ create table if not exists profiles (
 
 alter table profiles enable row level security;
 
+drop policy if exists "profiles_select_authenticated" on profiles;
 create policy "profiles_select_authenticated" on profiles
   for select to authenticated using (true);
 
@@ -70,16 +73,20 @@ alter table teams enable row level security;
 alter table team_members enable row level security;
 
 -- teams: 로그인한 사람은 누구나 팀 목록/이름을 검색할 수 있어야 "팀가입하기" 검색이 동작한다.
+drop policy if exists "teams_select_authenticated" on teams;
 create policy "teams_select_authenticated" on teams
   for select to authenticated using (true);
 
+drop policy if exists "teams_insert_self_owner" on teams;
 create policy "teams_insert_self_owner" on teams
   for insert to authenticated with check (owner_id = auth.uid());
 
+drop policy if exists "teams_update_owner" on teams;
 create policy "teams_update_owner" on teams
   for update to authenticated using (owner_id = auth.uid());
 
 -- team_members: 본인 멤버십 행 + 자신이 owner인 팀의 멤버십 행(가입신청 승인용)을 볼 수 있다.
+drop policy if exists "team_members_select_own_or_owned_team" on team_members;
 create policy "team_members_select_own_or_owned_team" on team_members
   for select to authenticated using (
     user_id = auth.uid()
@@ -89,10 +96,12 @@ create policy "team_members_select_own_or_owned_team" on team_members
   );
 
 -- 본인 명의로만 가입신청을 만들 수 있다 (다른 사람을 대신 가입시키는 것 방지).
+drop policy if exists "team_members_insert_self" on team_members;
 create policy "team_members_insert_self" on team_members
   for insert to authenticated with check (user_id = auth.uid());
 
--- 가입신청 승인/거절: 팀장만 자신의 팀 멤버십 상태를 바꿀 수 있다.
+-- 가입신청 승인/거절 + 매니저 지정: 팀장만 자신의 팀 멤버십 행(status, role)을 바꿀 수 있다.
+drop policy if exists "team_members_update_owner" on team_members;
 create policy "team_members_update_owner" on team_members
   for update to authenticated using (
     exists (
@@ -101,6 +110,7 @@ create policy "team_members_update_owner" on team_members
   );
 
 -- 본인 가입신청 취소, 또는 팀장이 신청을 거절(행 삭제)할 수 있다.
+drop policy if exists "team_members_delete_self_or_owner" on team_members;
 create policy "team_members_delete_self_or_owner" on team_members
   for delete to authenticated using (
     user_id = auth.uid()
@@ -108,9 +118,6 @@ create policy "team_members_delete_self_or_owner" on team_members
       select 1 from teams t where t.id = team_members.team_id and t.owner_id = auth.uid()
     )
   );
-
--- 팀장이 승인된 팀원의 role을 owner/manager/member로 바꿀 수 있게 한다 (매니저 지정용).
--- 기존 team_members_update_owner 정책은 status 변경(가입 승인)용으로 이미 있으므로 재사용된다.
 
 -- 일정(이벤트) 관리. 시간/내용은 owner·manager만 만들고 고칠 수 있고,
 -- 참여 여부(event_participants)는 팀원 누구나 본인 것만 넣고 뺄 수 있다.
@@ -135,6 +142,7 @@ create table if not exists event_participants (
 alter table events enable row level security;
 alter table event_participants enable row level security;
 
+drop policy if exists "events_select_team_members" on events;
 create policy "events_select_team_members" on events
   for select to authenticated using (
     exists (
@@ -143,6 +151,7 @@ create policy "events_select_team_members" on events
     )
   );
 
+drop policy if exists "events_insert_owner_manager" on events;
 create policy "events_insert_owner_manager" on events
   for insert to authenticated with check (
     exists (
@@ -152,6 +161,7 @@ create policy "events_insert_owner_manager" on events
     )
   );
 
+drop policy if exists "events_update_owner_manager" on events;
 create policy "events_update_owner_manager" on events
   for update to authenticated using (
     exists (
@@ -161,6 +171,7 @@ create policy "events_update_owner_manager" on events
     )
   );
 
+drop policy if exists "events_delete_owner_manager" on events;
 create policy "events_delete_owner_manager" on events
   for delete to authenticated using (
     exists (
@@ -170,6 +181,7 @@ create policy "events_delete_owner_manager" on events
     )
   );
 
+drop policy if exists "event_participants_select_team_members" on event_participants;
 create policy "event_participants_select_team_members" on event_participants
   for select to authenticated using (
     exists (
@@ -181,6 +193,7 @@ create policy "event_participants_select_team_members" on event_participants
   );
 
 -- 참여는 본인 명의로만, 그리고 그 팀의 승인된 멤버여야 신청 가능.
+drop policy if exists "event_participants_insert_self" on event_participants;
 create policy "event_participants_insert_self" on event_participants
   for insert to authenticated with check (
     user_id = auth.uid()
@@ -192,5 +205,6 @@ create policy "event_participants_insert_self" on event_participants
     )
   );
 
+drop policy if exists "event_participants_delete_self" on event_participants;
 create policy "event_participants_delete_self" on event_participants
   for delete to authenticated using (user_id = auth.uid());
