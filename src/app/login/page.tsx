@@ -31,11 +31,16 @@ export default function LoginPage() {
 
   // 카카오 로그인: Supabase 대시보드에서 Kakao Provider(REST API 키/시크릿)와
   // Kakao 개발자센터의 Redirect URI(Supabase 콜백 주소)를 먼저 설정해야 동작한다.
+  // 이메일(account_email) 동의항목은 비즈 앱 심사 전엔 권한이 없어 요청하면 KOE205가 나므로,
+  // 심사 전까지는 닉네임/프로필사진만 요청한다.
   const handleKakaoLogin = async () => {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: "kakao",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: "profile_nickname profile_image",
+      },
     });
   };
 

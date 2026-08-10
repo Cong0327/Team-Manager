@@ -9,7 +9,10 @@ export default function LinkKakaoButton() {
     const supabase = createClient();
     const { error } = await supabase.auth.linkIdentity({
       provider: "kakao",
-      options: { redirectTo: `${window.location.origin}/account` },
+      options: {
+        redirectTo: `${window.location.origin}/account`,
+        scopes: "profile_nickname profile_image",
+      },
     });
     if (error) alert(error.message);
   };
