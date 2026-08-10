@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getMyTeamMembership, getPendingRequests } from "@/lib/teams";
 import ApproveRequestButton from "./approve-request-button";
+import Calendar from "./calendar";
 
 // 진입점 라우팅: 비로그인 -> /login, 팀 없음/대기중 -> /team, 팀 있음 -> 대시보드.
 export default async function Home() {
@@ -36,9 +37,7 @@ export default async function Home() {
         </div>
       )}
 
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        상단 메뉴에서 명단관리 / 투표관리 / 일정관리 / 사진첩으로 이동하세요.
-      </p>
+      <Calendar />
     </main>
   );
 }
