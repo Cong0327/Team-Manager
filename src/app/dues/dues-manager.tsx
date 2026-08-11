@@ -282,7 +282,44 @@ export default function DuesManager({ teamId, dues, canManage, isOwner, duesAcco
         </div>
       </section>
 
-      <div className="overflow-x-auto rounded-2xl border border-black/[.08] dark:border-white/[.1]">
+      {/* 모바일(sm 미만): 카드형 목록 */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {dues.members.map((member) => {
+          const busy = loadingUserId === member.user_id;
+          return (
+            <div
+              key={member.user_id}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-black/[.08] p-4 dark:border-white/[.1]"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium">{member.name}</p>
+                <p className="truncate text-xs text-zinc-500">{member.email ?? "이메일 없음"}</p>
+                <p className="text-xs text-zinc-400">
+                  {member.pay?.paid_at ? formatPaidAt(member.pay.paid_at) : "미납부"}
+                </p>
+              </div>
+              {canManage ? (
+                <button
+                  onClick={() => togglePaid(member)}
+                  disabled={busy || dues.amount === null}
+                  className={`shrink-0 rounded px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                    member.pay?.paid
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                      : "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                  }`}
+                >
+                  {member.pay?.paid ? "납부 완료" : "미납"}
+                </button>
+              ) : (
+                <span className="shrink-0 text-sm">{member.pay?.paid ? "납부 완료" : "미납"}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 데스크톱(sm 이상): 표 */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-black/[.08] sm:block dark:border-white/[.1]">
         <table className="w-full min-w-[680px] text-sm">
           <thead>
             <tr className="border-b border-black/[.08] text-left text-xs text-zinc-500 dark:border-white/[.1]">

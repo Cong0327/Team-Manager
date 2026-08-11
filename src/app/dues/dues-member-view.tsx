@@ -108,40 +108,62 @@ export default function DuesMemberView({ displayMonth, duesAccount, currentMonth
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold text-zinc-500">매월 회비납부 내역</h3>
-        <div className="overflow-x-auto rounded-2xl border border-black/[.08] dark:border-white/[.1]">
-          <table className="w-full min-w-[520px] text-sm">
-            <thead>
-              <tr className="border-b border-black/[.08] text-left text-xs text-zinc-500 dark:border-white/[.1]">
-                <th className="px-3 py-2.5 font-medium">월</th>
-                <th className="px-3 py-2.5 font-medium">금액</th>
-                <th className="px-3 py-2.5 font-medium">마감일</th>
-                <th className="px-3 py-2.5 font-medium">상태</th>
-                <th className="px-3 py-2.5 font-medium">납부일</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-zinc-400">
-                    아직 납부 이력이 없습니다.
-                  </td>
-                </tr>
-              ) : (
-                history.map((row) => (
-                  <tr key={row.id} className="border-b border-black/[.05] last:border-0 dark:border-white/[.06]">
-                    <td className="px-3 py-2.5">{formatMonthLabel(row.year_month.slice(0, 7))}</td>
-                    <td className="px-3 py-2.5">{formatWon(row.amount)}</td>
-                    <td className="px-3 py-2.5 text-zinc-500">{row.due_date}</td>
-                    <td className="px-3 py-2.5">
-                      <PaidBadge paid={row.paid} />
-                    </td>
-                    <td className="px-3 py-2.5 text-zinc-500">{row.paid_at ? row.paid_at.slice(0, 10) : "-"}</td>
+
+        {history.length === 0 ? (
+          <p className="rounded-2xl border border-black/[.08] px-3 py-6 text-center text-sm text-zinc-400 dark:border-white/[.1]">
+            아직 납부 이력이 없습니다.
+          </p>
+        ) : (
+          <>
+            {/* 모바일(sm 미만): 카드형 목록 */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {history.map((row) => (
+                <div
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-black/[.08] p-4 dark:border-white/[.1]"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium">{formatMonthLabel(row.year_month.slice(0, 7))}</p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatWon(row.amount)}</p>
+                    <p className="text-xs text-zinc-400">
+                      마감 {row.due_date}
+                      {row.paid_at && ` · 납부일 ${row.paid_at.slice(0, 10)}`}
+                    </p>
+                  </div>
+                  <PaidBadge paid={row.paid} />
+                </div>
+              ))}
+            </div>
+
+            {/* 데스크톱(sm 이상): 표 */}
+            <div className="hidden overflow-x-auto rounded-2xl border border-black/[.08] sm:block dark:border-white/[.1]">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead>
+                  <tr className="border-b border-black/[.08] text-left text-xs text-zinc-500 dark:border-white/[.1]">
+                    <th className="px-3 py-2.5 font-medium">월</th>
+                    <th className="px-3 py-2.5 font-medium">금액</th>
+                    <th className="px-3 py-2.5 font-medium">마감일</th>
+                    <th className="px-3 py-2.5 font-medium">상태</th>
+                    <th className="px-3 py-2.5 font-medium">납부일</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {history.map((row) => (
+                    <tr key={row.id} className="border-b border-black/[.05] last:border-0 dark:border-white/[.06]">
+                      <td className="px-3 py-2.5">{formatMonthLabel(row.year_month.slice(0, 7))}</td>
+                      <td className="px-3 py-2.5">{formatWon(row.amount)}</td>
+                      <td className="px-3 py-2.5 text-zinc-500">{row.due_date}</td>
+                      <td className="px-3 py-2.5">
+                        <PaidBadge paid={row.paid} />
+                      </td>
+                      <td className="px-3 py-2.5 text-zinc-500">{row.paid_at ? row.paid_at.slice(0, 10) : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
