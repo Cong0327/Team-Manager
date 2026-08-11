@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,6 +11,16 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
+  // 초대 링크로 들어와서 가입하는 경우, 로그인 페이지까지 next를 이어서 보내
+  // 로그인 후 원래 초대 링크로 돌아가게 한다.
+  const [loginHref, setLoginHref] = useState("/login");
+
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    // 서버 렌더링 시점엔 "/login"으로 렌더해 hydration mismatch를 피하고, 마운트 후에만 갱신한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (next) setLoginHref(`/login?next=${encodeURIComponent(next)}`);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +45,7 @@ export default function SignupPage() {
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           이메일 인증이 켜져 있다면 받은편지함에서 확인해주세요.
         </p>
-        <Link href="/login" className="text-sm underline">
+        <Link href={loginHref} className="text-sm underline">
           로그인하러 가기
         </Link>
       </main>
@@ -71,7 +81,7 @@ export default function SignupPage() {
         >
           {status === "loading" ? "가입 중..." : "가입하기"}
         </button>
-        <Link href="/login" className="text-center text-sm underline">
+        <Link href={loginHref} className="text-center text-sm underline">
           이미 계정이 있으신가요? 로그인
         </Link>
       </form>

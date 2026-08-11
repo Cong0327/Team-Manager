@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getActiveMembership } from "@/lib/teams";
@@ -21,7 +22,10 @@ export default async function GalleryPage() {
       <div>
         <h1 className="text-xl font-semibold">사진첩</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {team.name} · {items.length}개
+          {team.name} · {items.length}개 ·{" "}
+          <Link href="/board" className="underline hover:text-foreground">
+            게시판 보기
+          </Link>
         </p>
       </div>
 

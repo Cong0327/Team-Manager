@@ -7,7 +7,9 @@ import { setActiveTeam } from "@/lib/team-actions";
 
 export type SwitcherTeam = { id: string; name: string };
 
-// 사이드바 상단의 팀 선택 드롭다운. 승인된 팀들 사이를 전환하고, 새 팀 생성/가입 화면으로 이동한다.
+// 사이드바 상단의 팀 표시/선택 영역. 단일 팀 사용을 전제로 하므로 소속 팀이 하나뿐이면
+// 전환할 것이 없어 드롭다운 없이 팀 이름만 보여준다. team_members가 여전히 여러 팀 소속을
+// 지원하므로(초대 링크로 다른 팀에도 들어갈 수 있음), 2개 이상이면 기존 드롭다운으로 전환한다.
 export default function TeamSwitcher({
   teams,
   activeTeamId,
@@ -47,6 +49,14 @@ export default function TeamSwitcher({
     );
   }
 
+  if (teams.length === 1) {
+    return (
+      <div className="flex h-14 items-center px-5">
+        <span className="truncate font-semibold tracking-tight">{activeTeam.name}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="relative px-3 pt-3 pb-1" ref={ref}>
       <button
@@ -82,14 +92,6 @@ export default function TeamSwitcher({
             {team.name}
           </button>
         ))}
-        <div className="my-1 border-t border-black/[.08] dark:border-white/[.1]" />
-        <Link
-          href="/team"
-          onClick={() => setOpen(false)}
-          className="block rounded-lg px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-black/[.05] dark:text-zinc-400 dark:hover:bg-white/[.08]"
-        >
-          + 새 팀 만들기/가입하기
-        </Link>
       </div>
     </div>
   );

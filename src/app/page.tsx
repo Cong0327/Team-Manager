@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { getActiveMembership, getPendingRequests, getApprovedMembers } from "@/lib/teams";
+import { getActiveMembership, getApprovedMembers } from "@/lib/teams";
 import { getTeamEvents, splitMatches } from "@/lib/events";
-import ApproveRequestButton from "./approve-request-button";
+import { PLATFORM_ADMIN_EMAIL } from "@/lib/dev-admin";
 import MemberRoleButton from "./member-role-button";
 import Calendar from "./calendar";
 import UpcomingRsvpCard from "./upcoming-rsvp-card";
@@ -21,7 +21,6 @@ export default async function Home() {
   if (!membership) redirect("/team");
 
   const { team, role } = membership;
-  const pendingRequests = role === "owner" ? await getPendingRequests(team.id) : [];
   const approvedMembers = role === "owner" ? await getApprovedMembers(team.id) : [];
   const events = await getTeamEvents(team.id);
   const canManageEvents = role === "owner" || role === "manager";
@@ -37,19 +36,6 @@ export default async function Home() {
         )}
       </div>
 
-      {role === "owner" && pendingRequests.length > 0 && (
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 rounded border border-black/[.1] p-4 dark:border-white/[.15]">
-          <h2 className="text-sm font-semibold">가입 신청 대기중 ({pendingRequests.length})</h2>
-          {pendingRequests.map((req) => (
-            <ApproveRequestButton
-              key={req.id}
-              memberId={req.id}
-              email={req.profile?.email ?? req.user_id}
-            />
-          ))}
-        </div>
-      )}
-
       {role === "owner" && approvedMembers.length > 0 && (
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 rounded border border-black/[.1] p-4 dark:border-white/[.15]">
           <h2 className="text-sm font-semibold">팀원 관리</h2>
@@ -58,7 +44,9 @@ export default async function Home() {
               <span>
                 {member.profile?.email ?? member.user_id}
                 {member.role === "owner" && (
-                  <span className="ml-2 text-xs text-zinc-500">(팀장)</span>
+                  <span className="ml-2 text-xs text-zinc-500">
+                    ({member.profile?.email === PLATFORM_ADMIN_EMAIL ? "관리자" : "감독"})
+                  </span>
                 )}
               </span>
               {member.role !== "owner" && (

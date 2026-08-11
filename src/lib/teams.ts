@@ -62,23 +62,6 @@ export async function getActiveMembership(): Promise<TeamMembership | null> {
   return approved.find((m) => m.team_id === activeTeamId) ?? approved[0];
 }
 
-// 내가 팀장인 팀의 대기중인 가입신청 목록 (승인/거절 UI에서 사용).
-// profiles와 조인해 신청자 이메일을 함께 보여준다 (auth.users는 클라이언트에서 조회 불가).
-export async function getPendingRequests(teamId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("team_members")
-    .select("id, user_id, created_at, profile:profiles(email)")
-    .eq("team_id", teamId)
-    .eq("status", "pending");
-
-  if (error || !data) return [];
-  return data.map((row) => ({
-    ...row,
-    profile: Array.isArray(row.profile) ? row.profile[0] : row.profile,
-  }));
-}
-
 // 승인된 팀원 목록 (매니저 지정 UI에서 사용). 이메일도 함께 가져온다.
 export async function getApprovedMembers(teamId: string) {
   const supabase = await createClient();

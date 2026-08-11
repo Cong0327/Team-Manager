@@ -170,10 +170,22 @@ create policy "team_members_select_approved_peers" on team_members
     and public.is_approved_team_member(team_members.team_id, auth.uid())
   );
 
--- 본인 명의로만 가입신청을 만들 수 있다 (다른 사람을 대신 가입시키는 것 방지).
+-- 가입은 초대 링크를 통해서만 가능하다 — 검색 후 가입신청을 보내는 "셀프 pending 등록" 경로는
+-- 더 이상 열어두지 않는다(team_members_insert_self 정책 폐지). 실제 가입 처리는 이 정책들을
+-- 전부 우회하는 별도의 security definer 함수(join_team_via_invite)로만 이루어진다.
 drop policy if exists "team_members_insert_self" on team_members;
-create policy "team_members_insert_self" on team_members
-  for insert to authenticated with check (user_id = auth.uid());
+
+-- 팀 생성자가 자기 자신을 owner+approved 행으로 등록하는 것만 허용한다. 조건은 "그 팀의
+-- teams.owner_id가 이미 나"인 경우로 한정한다 — 팀 생성(teams insert)이 owner_id=auth.uid()로
+-- 성공한 다음에만 통과하므로, 임의의 다른 사람 팀에 role='owner'로 위조 가입하는 건 여전히 막힌다.
+drop policy if exists "team_members_insert_owner_self" on team_members;
+create policy "team_members_insert_owner_self" on team_members
+  for insert to authenticated with check (
+    user_id = auth.uid()
+    and role = 'owner'
+    and status = 'approved'
+    and exists (select 1 from teams t where t.id = team_members.team_id and t.owner_id = auth.uid())
+  );
 
 -- 가입신청 승인/거절 + 매니저 지정 + 명단 정보(포지션/골/어시스트) 수정: 팀장은 무엇이든 바꿀 수 있다.
 drop policy if exists "team_members_update_owner" on team_members;
@@ -1142,6 +1154,248 @@ create policy "event_mom_votes_delete_self_before_close" on event_mom_votes
       select 1 from events e
       where e.id = event_mom_votes.event_id
         and now() < (date_trunc('day', e.starts_at at time zone 'Asia/Seoul') + interval '1 day') at time zone 'Asia/Seoul'
+    )
+  );
+
+-- =====================================================================
+-- 초대 링크
+-- 팀마다 하나의 토큰만 유지한다(팀당 링크 1개, 재발급하면 이전 링크는 즉시 무효화).
+-- 토큰 자체가 "비밀번호" 역할이라 teams처럼 전체 공개 select를 열면 안 된다 —
+-- owner/manager만 조회 가능하고, 링크로 들어온 사람의 가입 처리는 아래 함수가 대신 한다.
+-- =====================================================================
+create table if not exists team_invites (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null unique references teams(id) on delete cascade,
+  token text not null unique,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table team_invites enable row level security;
+
+-- 조회/재발급(재발급은 delete 후 insert로 구현)은 owner/manager만 (팀 운영 권한 있는 역할).
+drop policy if exists "team_invites_select_owner" on team_invites;
+drop policy if exists "team_invites_select_owner_manager" on team_invites;
+create policy "team_invites_select_owner_manager" on team_invites
+  for select to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_invites.team_id
+        and tm.user_id = auth.uid()
+        and tm.status = 'approved'
+        and tm.role in ('owner', 'manager')
+    )
+  );
+
+drop policy if exists "team_invites_insert_owner" on team_invites;
+drop policy if exists "team_invites_insert_owner_manager" on team_invites;
+create policy "team_invites_insert_owner_manager" on team_invites
+  for insert to authenticated with check (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_invites.team_id
+        and tm.user_id = auth.uid()
+        and tm.status = 'approved'
+        and tm.role in ('owner', 'manager')
+    )
+  );
+
+drop policy if exists "team_invites_delete_owner" on team_invites;
+drop policy if exists "team_invites_delete_owner_manager" on team_invites;
+create policy "team_invites_delete_owner_manager" on team_invites
+  for delete to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_invites.team_id
+        and tm.user_id = auth.uid()
+        and tm.status = 'approved'
+        and tm.role in ('owner', 'manager')
+    )
+  );
+
+-- 초대 링크로 들어온 사람을 즉시 승인 멤버로 넣는다. security definer로 실행돼
+-- team_members_insert_self(=pending만 허용)와 team_invites 조회 제한(=owner/manager만)을 모두 우회한다 —
+-- 그래서 이 함수 안에서 직접 토큰을 검증하는 것 자체가 유일한 보안 경계다.
+create or replace function public.join_team_via_invite(p_token text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_team_id uuid;
+begin
+  select team_id into v_team_id from team_invites where token = p_token;
+
+  if v_team_id is null then
+    raise exception '유효하지 않은 초대 링크입니다.';
+  end if;
+
+  insert into team_members (team_id, user_id, role, status)
+  values (v_team_id, auth.uid(), 'member', 'approved')
+  on conflict (team_id, user_id) do update set status = 'approved'
+  where team_members.status = 'pending';
+
+  return v_team_id;
+end;
+$$;
+
+grant execute on function public.join_team_via_invite(text) to authenticated;
+
+-- =====================================================================
+-- 게시판
+-- 제목/본문 + 사진 여러 장 첨부가 가능한 일반 게시판. 사진 파일은 사진첩(gallery_items)과
+-- 같은 'gallery' Storage 버킷의 '{team_id}/board/{post_id}/{uuid}.{ext}' 경로에 저장한다 —
+-- 그 버킷의 RLS가 경로 첫 폴더(team_id) 기준으로 이미 "팀의 승인된 멤버만 업로드/삭제"를
+-- 강제하므로 별도 버킷/정책 없이 그대로 재사용할 수 있다. image_paths에는 그 경로 목록만 담는다.
+-- 조회는 승인된 멤버 전원, 작성은 승인된 멤버 본인 명의로만, 수정은 작성자 본인,
+-- 삭제는 작성자 본인 또는 owner·manager(사진첩과 동일한 모더레이션 규칙).
+-- =====================================================================
+create table if not exists board_posts (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references teams(id) on delete cascade,
+  author_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  content text not null,
+  image_paths text[] not null default '{}',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- PostgREST가 author:profiles(email, name) 관계 임베딩을 찾을 수 있도록 profiles로도 FK를 건다
+-- (team_members 등에서 쓰는 것과 같은 이유 — 위 111번째 줄 주석 참고).
+do $$ begin
+  alter table board_posts
+    add constraint board_posts_author_id_profiles_fkey
+    foreign key (author_id) references profiles(id) on delete cascade;
+exception
+  when duplicate_object or duplicate_table then null;
+end $$;
+
+drop trigger if exists on_board_posts_updated on board_posts;
+create trigger on_board_posts_updated
+  before update on board_posts
+  for each row execute procedure public.set_updated_at();
+
+alter table board_posts enable row level security;
+
+drop policy if exists "board_posts_select_team_members" on board_posts;
+create policy "board_posts_select_team_members" on board_posts
+  for select to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = board_posts.team_id and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+drop policy if exists "board_posts_insert_self" on board_posts;
+create policy "board_posts_insert_self" on board_posts
+  for insert to authenticated with check (
+    author_id = auth.uid()
+    and exists (
+      select 1 from team_members tm
+      where tm.team_id = board_posts.team_id and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+drop policy if exists "board_posts_update_own" on board_posts;
+create policy "board_posts_update_own" on board_posts
+  for update to authenticated using (author_id = auth.uid()) with check (author_id = auth.uid());
+
+drop policy if exists "board_posts_delete_own_or_manager" on board_posts;
+create policy "board_posts_delete_own_or_manager" on board_posts
+  for delete to authenticated using (
+    author_id = auth.uid()
+    or exists (
+      select 1 from team_members tm
+      where tm.team_id = board_posts.team_id and tm.user_id = auth.uid()
+        and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  );
+
+-- =====================================================================
+-- 게시판 댓글 + 대댓글
+-- parent_comment_id가 null이면 최상위 댓글, 아니면 그 댓글에 달린 답글(대댓글)이다.
+-- 답글에는 다시 답글을 달 수 없게(2단계까지만) 트리거로 강제한다 — 안 그러면 무한 중첩이
+-- 가능해져 들여쓰기 1단계짜리 UI가 감당을 못 한다.
+-- 조회 권한은 상위 게시글(board_posts)의 team 기준으로 판단한다(poll_options/poll_votes와
+-- 같은 패턴). 조회는 승인된 멤버 전원, 작성은 본인 명의로만, 삭제는 작성자 본인 또는
+-- owner·manager. 수정은 없음(삭제 후 다시 작성).
+-- =====================================================================
+create table if not exists board_comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references board_posts(id) on delete cascade,
+  parent_comment_id uuid references board_comments(id) on delete cascade,
+  author_id uuid not null references auth.users(id) on delete cascade,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+do $$ begin
+  alter table board_comments
+    add constraint board_comments_author_id_profiles_fkey
+    foreign key (author_id) references profiles(id) on delete cascade;
+exception
+  when duplicate_object or duplicate_table then null;
+end $$;
+
+-- 답글의 답글을 막는다: parent_comment_id가 가리키는 댓글이 이미 답글(자신도 parent를 가짐)이면 에러.
+create or replace function public.enforce_board_comment_depth()
+returns trigger as $$
+declare
+  v_parent_has_parent boolean;
+begin
+  if new.parent_comment_id is not null then
+    select (parent_comment_id is not null) into v_parent_has_parent
+    from board_comments where id = new.parent_comment_id;
+
+    if v_parent_has_parent then
+      raise exception '답글에는 답글을 달 수 없습니다.';
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql set search_path = public;
+
+drop trigger if exists on_board_comments_insert on board_comments;
+create trigger on_board_comments_insert
+  before insert on board_comments
+  for each row execute procedure public.enforce_board_comment_depth();
+
+alter table board_comments enable row level security;
+
+drop policy if exists "board_comments_select_team_members" on board_comments;
+create policy "board_comments_select_team_members" on board_comments
+  for select to authenticated using (
+    exists (
+      select 1 from board_posts p
+      join team_members tm on tm.team_id = p.team_id
+      where p.id = board_comments.post_id
+        and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+drop policy if exists "board_comments_insert_self" on board_comments;
+create policy "board_comments_insert_self" on board_comments
+  for insert to authenticated with check (
+    author_id = auth.uid()
+    and exists (
+      select 1 from board_posts p
+      join team_members tm on tm.team_id = p.team_id
+      where p.id = board_comments.post_id
+        and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+drop policy if exists "board_comments_delete_own_or_manager" on board_comments;
+create policy "board_comments_delete_own_or_manager" on board_comments
+  for delete to authenticated using (
+    author_id = auth.uid()
+    or exists (
+      select 1 from board_posts p
+      join team_members tm on tm.team_id = p.team_id
+      where p.id = board_comments.post_id
+        and tm.user_id = auth.uid() and tm.status = 'approved' and tm.role in ('owner', 'manager')
     )
   );
 
