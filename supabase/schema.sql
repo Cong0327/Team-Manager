@@ -171,9 +171,14 @@ create policy "team_members_select_approved_peers" on team_members
   );
 
 -- 본인 명의로만 가입신청을 만들 수 있다 (다른 사람을 대신 가입시키는 것 방지).
+-- role/status도 여기서 고정한다 — 안 그러면 클라이언트가 role='owner', status='approved'로
+-- 직접 insert를 보내는 것만으로 권한을 위조할 수 있다(실제로 발견한 구멍). 초대 링크로 즉시
+-- 승인시키는 경로는 이 정책을 우회하는 별도의 security definer 함수(join_team_via_invite)로만 연다.
 drop policy if exists "team_members_insert_self" on team_members;
 create policy "team_members_insert_self" on team_members
-  for insert to authenticated with check (user_id = auth.uid());
+  for insert to authenticated with check (
+    user_id = auth.uid() and role = 'member' and status = 'pending'
+  );
 
 -- 가입신청 승인/거절 + 매니저 지정 + 명단 정보(포지션/골/어시스트) 수정: 팀장은 무엇이든 바꿀 수 있다.
 drop policy if exists "team_members_update_owner" on team_members;
@@ -1144,6 +1149,91 @@ create policy "event_mom_votes_delete_self_before_close" on event_mom_votes
         and now() < (date_trunc('day', e.starts_at at time zone 'Asia/Seoul') + interval '1 day') at time zone 'Asia/Seoul'
     )
   );
+
+-- =====================================================================
+-- 초대 링크
+-- 팀마다 하나의 토큰만 유지한다(팀당 링크 1개, 재발급하면 이전 링크는 즉시 무효화).
+-- 토큰 자체가 "비밀번호" 역할이라 teams처럼 전체 공개 select를 열면 안 된다 —
+-- owner/manager만 조회 가능하고, 링크로 들어온 사람의 가입 처리는 아래 함수가 대신 한다.
+-- =====================================================================
+create table if not exists team_invites (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null unique references teams(id) on delete cascade,
+  token text not null unique,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table team_invites enable row level security;
+
+-- 조회/재발급(재발급은 delete 후 insert로 구현)은 owner/manager만 (팀 운영 권한 있는 역할).
+drop policy if exists "team_invites_select_owner" on team_invites;
+drop policy if exists "team_invites_select_owner_manager" on team_invites;
+create policy "team_invites_select_owner_manager" on team_invites
+  for select to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_invites.team_id
+        and tm.user_id = auth.uid()
+        and tm.status = 'approved'
+        and tm.role in ('owner', 'manager')
+    )
+  );
+
+drop policy if exists "team_invites_insert_owner" on team_invites;
+drop policy if exists "team_invites_insert_owner_manager" on team_invites;
+create policy "team_invites_insert_owner_manager" on team_invites
+  for insert to authenticated with check (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_invites.team_id
+        and tm.user_id = auth.uid()
+        and tm.status = 'approved'
+        and tm.role in ('owner', 'manager')
+    )
+  );
+
+drop policy if exists "team_invites_delete_owner" on team_invites;
+drop policy if exists "team_invites_delete_owner_manager" on team_invites;
+create policy "team_invites_delete_owner_manager" on team_invites
+  for delete to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_invites.team_id
+        and tm.user_id = auth.uid()
+        and tm.status = 'approved'
+        and tm.role in ('owner', 'manager')
+    )
+  );
+
+-- 초대 링크로 들어온 사람을 즉시 승인 멤버로 넣는다. security definer로 실행돼
+-- team_members_insert_self(=pending만 허용)와 team_invites 조회 제한(=owner/manager만)을 모두 우회한다 —
+-- 그래서 이 함수 안에서 직접 토큰을 검증하는 것 자체가 유일한 보안 경계다.
+create or replace function public.join_team_via_invite(p_token text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_team_id uuid;
+begin
+  select team_id into v_team_id from team_invites where token = p_token;
+
+  if v_team_id is null then
+    raise exception '유효하지 않은 초대 링크입니다.';
+  end if;
+
+  insert into team_members (team_id, user_id, role, status)
+  values (v_team_id, auth.uid(), 'member', 'approved')
+  on conflict (team_id, user_id) do update set status = 'approved'
+  where team_members.status = 'pending';
+
+  return v_team_id;
+end;
+$$;
+
+grant execute on function public.join_team_via_invite(text) to authenticated;
 
 -- 위쪽 notify는 team_policy 블록이 추가되기 전 위치라 team_policy까지는 못 덮는다.
 -- 파일 실행이 끝나는 진짜 마지막 지점에서 한 번 더 캐시를 갱신한다.

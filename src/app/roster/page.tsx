@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getActiveMembership, getTeamRoster } from "@/lib/teams";
+import { getTeamInvite } from "@/lib/invites";
+import InviteLinkCard from "./invite-link-card";
 import RosterTable from "./roster-table";
 
 // 명단관리: 별도 등록 없이 팀에 가입 승인된 사람을 그대로 명단으로 보여준다.
@@ -13,7 +15,11 @@ export default async function RosterPage() {
   if (!membership) redirect("/team");
 
   const { team, role } = membership;
-  const members = await getTeamRoster(team.id);
+  const canManageInvite = role === "owner" || role === "manager";
+  const [members, invite] = await Promise.all([
+    getTeamRoster(team.id),
+    canManageInvite ? getTeamInvite(team.id) : Promise.resolve(null),
+  ]);
 
   return (
     <main className="flex flex-1 flex-col gap-4 px-6 py-10">
@@ -23,6 +29,10 @@ export default async function RosterPage() {
           {team.name} · {members.length}명
         </p>
       </div>
+
+      {canManageInvite && (
+        <InviteLinkCard teamId={team.id} initialInvite={invite} currentUserId={user.id} />
+      )}
 
       <RosterTable members={members} viewerRole={role} />
     </main>

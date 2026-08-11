@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -16,6 +16,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 초대 링크(/team/invite/[token])처럼 로그인 후 원래 가려던 곳으로 돌아가야 할 때 쓴다.
+  // useSearchParams 대신 직접 읽어서 Suspense 경계 없이도 동작하게 한다.
+  const [nextPath, setNextPath] = useState("/");
+
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    // 서버 렌더링 시점엔 "/"로 렌더해 hydration mismatch를 피하고, 마운트 후에만 갱신한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (next) setNextPath(next);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +40,7 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    router.push("/");
+    router.push(nextPath);
     router.refresh();
   };
 
@@ -96,7 +106,10 @@ export default function LoginPage() {
           </>
         )}
 
-        <Link href="/signup" className="text-center text-sm underline">
+        <Link
+          href={nextPath === "/" ? "/signup" : `/signup?next=${encodeURIComponent(nextPath)}`}
+          className="text-center text-sm underline"
+        >
           계정이 없으신가요? 회원가입
         </Link>
       </form>
