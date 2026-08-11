@@ -3,23 +3,30 @@ import { getCurrentUser } from "@/lib/supabase/server";
 import { getMyProfile } from "@/lib/profile";
 import { getActiveMembership } from "@/lib/teams";
 import { getMyRosterEntry, getMyMatchStats } from "@/lib/player-stats";
+import { getKakaoLinkStatus } from "@/lib/kakao";
 import { calcAge } from "@/lib/age";
 import LinkKakaoButton from "./link-kakao-button";
+import UnlinkKakaoButton from "./unlink-kakao-button";
 import LogoutButton from "./logout-button";
 import DetailForm from "./detail-form";
 
-// 로그인 페이지와 동일한 이유(KOE205)로 이메일 동의항목 심사 전까지 숨긴다.
-// CLAUDE.md의 Auth 절 참고.
-const KAKAO_LINK_ENABLED = false;
-
-export default async function AccountPage() {
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const hasKakao = user.identities?.some((i) => i.provider === "kakao") ?? false;
+  const params = await searchParams;
+  const kakaoParam = Array.isArray(params.kakao) ? params.kakao[0] : params.kakao;
 
-  // profile/membership은 서로 의존관계가 없어 동시에 조회한다.
-  const [profile, membership] = await Promise.all([getMyProfile(), getActiveMembership()]);
+  // profile/membership/kakaoStatus는 서로 의존관계가 없어 동시에 조회한다.
+  const [profile, membership, kakaoStatus] = await Promise.all([
+    getMyProfile(),
+    getActiveMembership(),
+    getKakaoLinkStatus(user.id),
+  ]);
 
   // 상세정보/기록 카드는 현재 활성 팀 기준이다. 활성 팀이 없으면 팀 관련 항목은 비활성으로 표시한다.
   // entry/matchStats도 서로 의존관계가 없어 동시에 조회한다.
@@ -35,19 +42,28 @@ export default async function AccountPage() {
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-6 py-10">
       <h1 className="text-xl font-semibold">마이페이지</h1>
 
-      {/* 카드 1: 계정 (이메일 · 카카오 연동 · 로그아웃) */}
+      {/* 카드 1: 계정 (이메일 · 카카오톡 연동 · 로그아웃) */}
       <section className="flex flex-col gap-4 rounded-2xl border border-black/[.08] p-5 dark:border-white/[.1]">
         <h2 className="text-sm font-semibold text-zinc-500">계정</h2>
+
+        {kakaoParam === "linked" && (
+          <p className="text-sm text-green-600 dark:text-green-400">카카오톡 연동이 완료됐어요.</p>
+        )}
+        {kakaoParam === "error" && (
+          <p className="text-sm text-red-600">카카오톡 연동에 실패했어요. 다시 시도해주세요.</p>
+        )}
+
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm">{user.email}</span>
-          {hasKakao ? (
-            <span className="rounded-full bg-[#FEE500] px-2.5 py-1 text-xs text-black">
-              카카오 연동됨
-            </span>
-          ) : KAKAO_LINK_ENABLED ? (
-            <LinkKakaoButton />
+          {kakaoStatus.linked ? (
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-[#FEE500] px-2.5 py-1 text-xs text-black">
+                카카오톡 연동됨
+              </span>
+              <UnlinkKakaoButton />
+            </div>
           ) : (
-            <span className="text-xs text-zinc-400">카카오 미연동</span>
+            <LinkKakaoButton />
           )}
         </div>
         <LogoutButton />
