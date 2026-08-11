@@ -33,6 +33,11 @@ export const metadata: Metadata = {
 // viewport-fit: cover + safe-area-inset 패딩(app-shell.tsx)을 짝지어야 노치/상태바 있는 기기에서
 // 홈 화면 설치 앱(standalone)으로 열었을 때 상단 고정 헤더/사이드바가 상태바에 안 가려진다.
 export const viewport: Viewport = {
+  // width/initialScale은 Next.js 기본값인데, viewport export를 커스텀으로 정의하면
+  // 기본값과 합쳐지지 않고 완전히 대체된다 — 빠뜨리면 모바일에서 뷰포트가 device-width로
+  // 안 맞춰져서 화면이 확대/축소된 채로 렌더되고, 보이는 위치와 실제 터치 좌표가 어긋난다.
+  width: "device-width",
+  initialScale: 1,
   themeColor: "#ffffff",
   viewportFit: "cover",
 };

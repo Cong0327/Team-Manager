@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AccountMenu from "./account-menu";
@@ -132,6 +132,15 @@ export default function AppShell({
   // 로그인 + 소속된(승인된) 팀이 하나라도 있어야 좌측 네비게이션을 보여준다.
   // 로그인 전이거나(팀/로그인 화면), 팀이 아직 없는 사용자(/team 허브)에게는 사이드바 자체를 숨긴다.
   const showSidebar = Boolean(user) && teams.length > 0;
+
+  // 모바일 화면(sm 미만)에서는 224px짜리 사이드바가 화면 대부분을 가려버려서 기본값을 접어둔다.
+  // 서버 렌더링 시점엔 window가 없어 항상 true로 그려지므로, 마운트 후에만 조정한다
+  // (hydration mismatch를 피하려고 초기 렌더는 데스크톱 기준으로 유지 — login/signup의 next
+  // 파라미터 처리와 같은 패턴).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (window.innerWidth < 640) setSidebarOpen(false);
+  }, []);
 
   // 현재 경로에 해당하는 항목을 강조한다. "/"는 정확히 일치할 때만, 나머지는 하위 경로까지 포함.
   const isActive = (href: string) =>
