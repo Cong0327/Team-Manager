@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { getCurrentUser } from "@/lib/supabase/server";
@@ -20,6 +20,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Team Manager",
   description: "축구 팀 관리 - 명단, 투표, 일정, 사진첩",
+  manifest: "/manifest.webmanifest",
+  // iOS는 매니페스트만으로는 "홈 화면에 추가"가 앱처럼(standalone) 안 열려서 별도 메타 태그가 필요하다.
+  // Android/Chrome은 manifest.ts의 display: "standalone"만으로 충분하다.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Team Manager",
+  },
+};
+
+// viewport-fit: cover + safe-area-inset 패딩(app-shell.tsx)을 짝지어야 노치/상태바 있는 기기에서
+// 홈 화면 설치 앱(standalone)으로 열었을 때 상단 고정 헤더/사이드바가 상태바에 안 가려진다.
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
