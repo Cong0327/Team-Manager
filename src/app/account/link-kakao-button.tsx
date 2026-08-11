@@ -1,28 +1,13 @@
-"use client";
-
-import { createClient } from "@/lib/supabase/client";
-
-// 이메일로 가입한 계정에 카카오 계정을 연동한다 (linkIdentity).
-// Supabase 프로젝트의 Authentication 설정에서 "Manual Linking"을 켜야 동작한다.
+// 카카오톡(톡캘린더) 연동. Supabase Auth를 거치지 않고 앱이 직접 카카오 OAuth를 호출하는
+// /api/kakao/link로 이동한다 — account_email 스코프와 무관해 심사 없이 바로 동작한다.
+// 일반 링크 이동이라 클라이언트 JS가 필요 없다(서버 컴포넌트에서도 렌더 가능).
 export default function LinkKakaoButton() {
-  const handleClick = async () => {
-    const supabase = createClient();
-    const { error } = await supabase.auth.linkIdentity({
-      provider: "kakao",
-      options: {
-        redirectTo: `${window.location.origin}/account`,
-        scopes: "profile_nickname profile_image",
-      },
-    });
-    if (error) alert(error.message);
-  };
-
   return (
-    <button
-      onClick={handleClick}
-      className="rounded bg-[#FEE500] px-3 py-2 text-sm text-black"
+    <a
+      href="/api/kakao/link"
+      className="rounded bg-[#FEE500] px-3 py-2 text-sm font-medium text-black"
     >
-      카카오 연동하기
-    </button>
+      카카오톡 연동하기
+    </a>
   );
 }

@@ -1406,6 +1406,48 @@ create policy "board_comments_delete_own_or_manager" on board_comments
     )
   );
 
+-- =====================================================================
+-- 카카오톡 연동 (톡캘린더 등 카카오 API 접근용)
+-- Supabase Auth의 카카오 로그인/계정연동(linkIdentity)은 account_email 스코프를 강제로
+-- 요청해서 이메일 동의항목 심사 전까지 KOE205로 막혀있다(CLAUDE.md Auth 절 참고). 그래서
+-- 이 연동은 Supabase를 거치지 않고 앱이 카카오 OAuth authorize 엔드포인트를 직접 호출해서
+-- talk_calendar 스코프만 요청한다 — 이메일 동의항목과 무관해 심사 없이 바로 쓸 수 있다.
+-- profiles 테이블은 "로그인한 사람 누구나 전체 조회 가능" 정책이라 여기에 토큰을 두면 다른
+-- 팀원이 내 카카오 토큰을 읽어갈 수 있다 — 그래서 본인만 접근 가능한 별도 테이블에 둔다.
+-- =====================================================================
+create table if not exists kakao_links (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  kakao_user_id text not null,
+  access_token text not null,
+  refresh_token text not null,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists on_kakao_links_updated on kakao_links;
+create trigger on_kakao_links_updated
+  before update on kakao_links
+  for each row execute procedure public.set_updated_at();
+
+alter table kakao_links enable row level security;
+
+drop policy if exists "kakao_links_select_self" on kakao_links;
+create policy "kakao_links_select_self" on kakao_links
+  for select to authenticated using (user_id = auth.uid());
+
+drop policy if exists "kakao_links_insert_self" on kakao_links;
+create policy "kakao_links_insert_self" on kakao_links
+  for insert to authenticated with check (user_id = auth.uid());
+
+drop policy if exists "kakao_links_update_self" on kakao_links;
+create policy "kakao_links_update_self" on kakao_links
+  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "kakao_links_delete_self" on kakao_links;
+create policy "kakao_links_delete_self" on kakao_links
+  for delete to authenticated using (user_id = auth.uid());
+
 -- 위쪽 notify는 team_policy 블록이 추가되기 전 위치라 team_policy까지는 못 덮는다.
 -- 파일 실행이 끝나는 진짜 마지막 지점에서 한 번 더 캐시를 갱신한다.
 notify pgrst, 'reload schema';
