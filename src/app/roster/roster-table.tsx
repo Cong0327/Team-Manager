@@ -24,7 +24,7 @@ function formatDate(iso: string) {
 
 // 명단관리 표. 선수는 별도 등록 없이 팀에 가입 승인된 사람 그대로다.
 // 이름/나이(생년월일)는 본인이 마이페이지에서 입력한 값을 보여줄 뿐 여기서 고치지 않는다.
-// 여기서는 owner·manager 권한으로 포지션/등번호/골/어시스트/MOM/역할/제명을 편집한다.
+// 여기서는 owner·manager 권한으로 포지션/등번호/골/어시스트/MOM/역할을 편집하고, 제명은 owner만 한다.
 // (포지션·등번호는 본인도 마이페이지에서 수정 가능 — 컬럼별 권한은 DB 트리거로 강제.)
 export default function RosterTable({
   members,
@@ -42,8 +42,11 @@ export default function RosterTable({
   // (DB의 team_members_update_manager 정책과 짝이 맞아야 한다.)
   const canEditStats = (target: RosterMember) =>
     viewerRole === "owner" || (viewerRole === "manager" && target.role === "member");
-  // 역할 변경/제명은 감독(owner) 행에는 적용하지 않는다.
+  // 매니저 지정/해제는 owner·manager 모두 가능하지만(감독 행은 대상에서 제외).
   const canManageRole = (target: RosterMember) => target.role !== "owner" && canEditStats(target);
+  // 제명은 감독(owner)만 가능하다 — 매니저는 더 이상 못 한다(DB team_members_delete_self_or_owner
+  // 정책과 짝이 맞아야 한다). 감독 행은 애초에 제명 대상이 아니다.
+  const canKick = (target: RosterMember) => target.role !== "owner" && viewerRole === "owner";
 
   const updateFields = async (memberId: string, patch: Record<string, unknown>) => {
     setLoadingId(memberId);
@@ -184,7 +187,7 @@ export default function RosterTable({
                   </div>
                 </td>
                 <td className="px-3 py-2.5">
-                  {roleEditable && (
+                  {canKick(m) && (
                     <button
                       onClick={() => kick(m)}
                       disabled={busy}

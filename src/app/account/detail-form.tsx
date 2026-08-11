@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { calcAge } from "@/lib/age";
-import { POSITIONS, MAX_POSITIONS } from "@/lib/positions";
+import { POSITIONS } from "@/lib/positions";
 import type { PreferredFoot } from "@/lib/profile";
 
 // 상세정보 카드의 편집 폼. 본인이 자기 정보를 직접 수정한다.
@@ -31,7 +31,10 @@ export default function DetailForm({
   const [name, setName] = useState(initialName ?? "");
   const [birthDate, setBirthDate] = useState(initialBirthDate ?? "");
   const [foot, setFoot] = useState<PreferredFoot | "">(initialFoot ?? "");
-  const [positions, setPositions] = useState<string[]>(initialPositions);
+  // 포지션은 "1순위/2순위"로 순서가 있는 선택이라, 뭉뚱그린 다중 선택 대신 두 개의
+  // select로 각각 받는다(같은 포지션을 1·2순위에 중복 선택하는 것도 여기서 막는다).
+  const [primaryPosition, setPrimaryPosition] = useState(initialPositions[0] ?? "");
+  const [secondaryPosition, setSecondaryPosition] = useState(initialPositions[1] ?? "");
   const [jersey, setJersey] = useState(initialJersey?.toString() ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,13 +43,7 @@ export default function DetailForm({
   // 생년월일을 입력하면 나이를 즉시 미리 보여준다.
   const previewAge = calcAge(birthDate || null);
 
-  const togglePosition = (p: string) => {
-    setPositions((prev) => {
-      if (prev.includes(p)) return prev.filter((x) => x !== p);
-      if (prev.length >= MAX_POSITIONS) return prev; // 2개 초과 선택 방지
-      return [...prev, p];
-    });
-  };
+  const positions = [primaryPosition, secondaryPosition].filter(Boolean);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,29 +134,44 @@ export default function DetailForm({
       {/* 포지션/등번호는 활성 팀(team_members)이 있을 때만 노출/저장한다. */}
       {memberId ? (
         <>
-          <div className="flex flex-col gap-1 text-sm">
-            <span className="text-zinc-500">포지션 (최대 {MAX_POSITIONS}개)</span>
-            <div className="flex flex-wrap gap-2">
-              {POSITIONS.map((p) => {
-                const active = positions.includes(p);
-                const full = positions.length >= MAX_POSITIONS && !active;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => togglePosition(p)}
-                    disabled={full}
-                    className={`rounded border px-3 py-2 text-sm transition-colors disabled:opacity-40 ${
-                      active
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-black/[.15] dark:border-white/[.2]"
-                    }`}
-                  >
+          <div className="flex gap-3">
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              <span className="text-zinc-500">포지션 1순위</span>
+              <select
+                value={primaryPosition}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPrimaryPosition(next);
+                  // 1순위를 2순위와 같은 포지션으로 바꾸면 2순위는 비워서 중복을 막는다.
+                  if (next && next === secondaryPosition) setSecondaryPosition("");
+                }}
+                className="rounded border border-black/[.15] px-3 py-2 text-sm dark:border-white/[.2] dark:bg-white/[.05]"
+              >
+                <option value="">선택 안 함</option>
+                {POSITIONS.map((p) => (
+                  <option key={p} value={p}>
                     {p}
-                  </button>
-                );
-              })}
-            </div>
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              <span className="text-zinc-500">포지션 2순위</span>
+              <select
+                value={secondaryPosition}
+                onChange={(e) => setSecondaryPosition(e.target.value)}
+                disabled={!primaryPosition}
+                className="rounded border border-black/[.15] px-3 py-2 text-sm disabled:opacity-40 dark:border-white/[.2] dark:bg-white/[.05]"
+              >
+                <option value="">선택 안 함</option>
+                {POSITIONS.filter((p) => p !== primaryPosition).map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           <label className="flex flex-col gap-1 text-sm">
