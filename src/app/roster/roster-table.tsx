@@ -5,9 +5,17 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { calcAge } from "@/lib/age";
 import { POSITIONS, MAX_POSITIONS } from "@/lib/positions";
+import { PLATFORM_ADMIN_EMAIL } from "@/lib/dev-admin";
 import type { RosterMember, TeamMemberRole } from "@/lib/teams";
 
 const ROLE_LABEL: Record<TeamMemberRole, string> = { owner: "감독", manager: "매니저", member: "팀원" };
+
+// 실제 팀 감독은 "감독"으로, 개발자 겸 관리자 테스트 계정만 "관리자"로 구분해서 보여준다
+// (권한은 동일 — 표기만 다름. @/lib/dev-admin 참고).
+function roleLabel(member: RosterMember) {
+  if (member.role === "owner" && member.profile?.email === PLATFORM_ADMIN_EMAIL) return "관리자";
+  return ROLE_LABEL[member.role];
+}
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -163,7 +171,7 @@ export default function RosterTable({
                 <td className="px-3 py-2.5">{m.mom}</td>
                 <td className="px-3 py-2.5">
                   <div className="flex flex-col items-start gap-1">
-                    <span>{ROLE_LABEL[m.role]}</span>
+                    <span>{roleLabel(m)}</span>
                     {roleEditable && (
                       <button
                         onClick={() => toggleManager(m)}

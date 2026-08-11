@@ -4,12 +4,13 @@ import { normalizeMonthParam } from "@/lib/dues";
 import { getMonthlyDues, getMyDuesOverview } from "@/lib/dues-server";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getActiveMembership } from "@/lib/teams";
+import { PLATFORM_ADMIN_EMAIL } from "@/lib/dev-admin";
 import DuesManager from "./dues-manager";
 import DuesMemberView from "./dues-member-view";
 
 // 테스트/데모 계정 전용: 감독 화면과 회원 화면을 한 계정에서 오가며 확인할 수 있게 상단 토글을 준다.
 // 다른 계정은 역할(owner/manager 대 member)에 따라 화면이 고정된다.
-const DUAL_VIEW_EMAIL = "hsp400@naver.com";
+const DUAL_VIEW_EMAIL = PLATFORM_ADMIN_EMAIL;
 
 // 회비 페이지는 URL의 월과 로그인 사용자의 활성 팀/역할에 따라 매번 달라져 서버에서 권한과 초기 데이터를 확정한다.
 export default async function DuesPage({

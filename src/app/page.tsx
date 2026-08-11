@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getActiveMembership, getPendingRequests, getApprovedMembers } from "@/lib/teams";
 import { getTeamEvents, splitMatches } from "@/lib/events";
+import { PLATFORM_ADMIN_EMAIL } from "@/lib/dev-admin";
 import ApproveRequestButton from "./approve-request-button";
 import MemberRoleButton from "./member-role-button";
 import Calendar from "./calendar";
@@ -58,7 +59,9 @@ export default async function Home() {
               <span>
                 {member.profile?.email ?? member.user_id}
                 {member.role === "owner" && (
-                  <span className="ml-2 text-xs text-zinc-500">(팀장)</span>
+                  <span className="ml-2 text-xs text-zinc-500">
+                    ({member.profile?.email === PLATFORM_ADMIN_EMAIL ? "관리자" : "감독"})
+                  </span>
                 )}
               </span>
               {member.role !== "owner" && (
