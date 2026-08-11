@@ -6,7 +6,8 @@ import InviteLinkCard from "./invite-link-card";
 import RosterTable from "./roster-table";
 
 // 명단관리: 별도 등록 없이 팀에 가입 승인된 사람을 그대로 명단으로 보여준다.
-// 조회는 승인된 팀원 전원, 포지션/골/어시스트/역할/제명 편집은 owner·manager만 (RLS로도 강제).
+// 조회는 승인된 팀원 전원, 포지션/골/어시스트/역할 편집은 owner·manager, 제명은 owner만
+// (RLS로도 강제 — 개발자 겸 관리자 테스트 계정은 자기 팀의 owner라 별도 예외가 필요 없다).
 export default async function RosterPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

@@ -277,16 +277,15 @@ create trigger on_team_member_update
 
 -- 본인 가입신청 취소, 팀장의 신청 거절/명단 제명, 매니저의 일반 팀원 제명(추방)을 허용한다.
 -- 매니저는 role='member' 행만 제명할 수 있다(owner/다른 매니저는 제명 불가).
+-- 제명(다른 사람을 팀에서 삭제)은 감독(owner)만 할 수 있다 — 매니저는 더 이상 못 한다
+-- (예전엔 매니저도 일반 팀원을 제명할 수 있었으나, 정책 변경으로 제외했다). 본인 가입신청
+-- 취소/탈퇴(자기 자신 삭제)는 역할과 무관하게 항상 허용한다.
 drop policy if exists "team_members_delete_self_or_owner" on team_members;
 create policy "team_members_delete_self_or_owner" on team_members
   for delete to authenticated using (
     user_id = auth.uid()
     or exists (
       select 1 from teams t where t.id = team_members.team_id and t.owner_id = auth.uid()
-    )
-    or (
-      team_members.role = 'member'
-      and public.is_team_manager(team_members.team_id, auth.uid())
     )
   );
 
