@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getMyTeamMemberships, ACTIVE_TEAM_COOKIE } from "@/lib/teams";
+import { getMyProfile } from "@/lib/profile";
 import { cookies } from "next/headers";
 import AppShell from "./app-shell";
 
@@ -24,6 +25,8 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // 매 요청마다 로그인 상태를 확인해 상단바에 계정/로그인 UI를 다르게 보여준다.
   const user = await getCurrentUser();
+  // 상단바 표시 이름: 마이페이지에서 이름을 등록했으면 이름, 안 했으면 이메일(AccountMenu에서 결정).
+  const profile = user ? await getMyProfile() : null;
 
   const memberships = user ? await getMyTeamMemberships() : [];
   const approvedTeams = memberships
@@ -40,7 +43,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <AppShell
-          user={user?.email ? { email: user.email } : null}
+          user={user?.email ? { email: user.email, name: profile?.name ?? null } : null}
           teams={approvedTeams}
           activeTeamId={activeTeamId}
         >

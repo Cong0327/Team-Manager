@@ -45,7 +45,7 @@ export default function AppShell({
   activeTeamId,
   children,
 }: {
-  user: { email: string } | null;
+  user: { email: string; name: string | null } | null;
   teams: SwitcherTeam[];
   activeTeamId: string | null;
   children: React.ReactNode;
@@ -129,7 +129,7 @@ export default function AppShell({
 
           <div className="ml-auto">
             {user ? (
-              <AccountMenu email={user.email} />
+              <AccountMenu email={user.email} name={user.name} />
             ) : (
               <Link
                 href="/login"
