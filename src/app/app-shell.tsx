@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AccountMenu from "./account-menu";
@@ -36,6 +36,83 @@ const NAV_SECTIONS: { title: string; items: { href: string; label: string }[] }[
 ];
 
 const SIDEBAR_WIDTH = "w-56";
+
+// 모바일 전용 하단 탭바. 사이드바 전체 메뉴 중 자주 쓰는 5개만 추려서 바로 이동할 수 있게 한다
+// (전체 메뉴는 기존처럼 햄버거로 열리는 사이드바에 그대로 있음). sm 이상에서는 숨긴다.
+const BOTTOM_NAV_ITEMS: { href: string; label: string; icon: (active: boolean) => ReactNode }[] = [
+  {
+    href: "/",
+    label: "홈",
+    icon: (active) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+        <path
+          d="M3 9.5 10 3l7 6.5M5 8v8.5a.5.5 0 0 0 .5.5H8v-4.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V17h2.5a.5.5 0 0 0 .5-.5V8"
+          stroke="currentColor"
+          strokeWidth={active ? 1.8 : 1.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/schedule",
+    label: "경기일정",
+    icon: (active) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+        <rect
+          x="3.5"
+          y="4"
+          width="13"
+          height="12.5"
+          rx="1.5"
+          stroke="currentColor"
+          strokeWidth={active ? 1.8 : 1.4}
+        />
+        <path d="M3.5 8h13M7 2.5v3M13 2.5v3" stroke="currentColor" strokeWidth={active ? 1.8 : 1.4} strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/my-records",
+    label: "기록",
+    icon: (active) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+        <path
+          d="M5 3.5h10a.5.5 0 0 1 .5.5v12a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5Z"
+          stroke="currentColor"
+          strokeWidth={active ? 1.8 : 1.4}
+        />
+        <path d="M7 7.5h6M7 10.5h6M7 13.5h3.5" stroke="currentColor" strokeWidth={active ? 1.8 : 1.4} strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/dues",
+    label: "회비",
+    icon: (active) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+        <circle cx="10" cy="10" r="6.5" stroke="currentColor" strokeWidth={active ? 1.8 : 1.4} />
+        <path d="M8 7.5h3.2a1.3 1.3 0 1 1 0 2.6H8m0 0h3.4M8 10.1h4" stroke="currentColor" strokeWidth={active ? 1.8 : 1.4} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/account",
+    label: "내정보",
+    icon: (active) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+        <circle cx="10" cy="6.8" r="3" stroke="currentColor" strokeWidth={active ? 1.8 : 1.4} />
+        <path
+          d="M4 16.5c0-3 2.7-5 6-5s6 2 6 5"
+          stroke="currentColor"
+          strokeWidth={active ? 1.8 : 1.4}
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+];
 
 // 좌측 사이드바(온오프+슬라이드 애니메이션)와 상단바(햄버거+계정 드롭다운)를 함께 관리한다.
 // 사이드바 상태는 레이아웃에 살아있는 동안(같은 세션 내 페이지 이동)에는 유지된다.
@@ -141,8 +218,34 @@ export default function AppShell({
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col">{children}</div>
+        <div className={`flex flex-1 flex-col ${showSidebar ? "pb-16 sm:pb-0" : ""}`}>{children}</div>
       </div>
+
+      {showSidebar && (
+        <nav
+          className="fixed inset-x-0 bottom-0 z-40 flex border-t border-black/[.08] bg-white pb-[env(safe-area-inset-bottom)] sm:hidden dark:border-white/[.1] dark:bg-zinc-950"
+          aria-label="빠른 이동"
+        >
+          {BOTTOM_NAV_ITEMS.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] transition-colors ${
+                  active
+                    ? "text-foreground"
+                    : "text-zinc-500 dark:text-zinc-400"
+                }`}
+              >
+                {item.icon(active)}
+                <span className={active ? "font-medium" : ""}>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      )}
     </div>
   );
 }
