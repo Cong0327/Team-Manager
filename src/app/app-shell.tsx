@@ -68,7 +68,7 @@ export default function AppShell({
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <TeamSwitcher teams={teams} activeTeamId={activeTeamId} />
+          <TeamSwitcher teams={teams} activeTeamId={activeTeamId} userEmail={user?.email ?? null} />
           <nav className="flex flex-col gap-4 px-3 py-3">
             {NAV_SECTIONS.map((section) => (
               <div key={section.title} className="flex flex-col gap-0.5">
