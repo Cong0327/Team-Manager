@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getActiveMembership } from "@/lib/teams";
-import { getBoardPost } from "@/lib/board";
+import { getBoardComments, getBoardPost } from "@/lib/board";
 import DeletePostButton from "./delete-post-button";
+import CommentSection from "./comment-section";
 
 export default async function BoardPostPage({
   params,
@@ -24,6 +25,7 @@ export default async function BoardPostPage({
   const isAuthor = post.author_id === user.id;
   const isTeamManager = membership.role === "owner" || membership.role === "manager";
   const canModeratePost = isAuthor || isTeamManager;
+  const comments = await getBoardComments(post.id);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-6 py-10">
@@ -63,6 +65,13 @@ export default async function BoardPostPage({
           <DeletePostButton postId={post.id} imagePaths={post.image_paths} />
         </div>
       )}
+
+      <CommentSection
+        postId={post.id}
+        currentUserId={user.id}
+        canModerate={isTeamManager}
+        initialComments={comments}
+      />
     </main>
   );
 }

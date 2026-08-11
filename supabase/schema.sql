@@ -1306,6 +1306,92 @@ create policy "board_posts_delete_own_or_manager" on board_posts
     )
   );
 
+-- =====================================================================
+-- 게시판 댓글 + 대댓글
+-- parent_comment_id가 null이면 최상위 댓글, 아니면 그 댓글에 달린 답글(대댓글)이다.
+-- 답글에는 다시 답글을 달 수 없게(2단계까지만) 트리거로 강제한다 — 안 그러면 무한 중첩이
+-- 가능해져 들여쓰기 1단계짜리 UI가 감당을 못 한다.
+-- 조회 권한은 상위 게시글(board_posts)의 team 기준으로 판단한다(poll_options/poll_votes와
+-- 같은 패턴). 조회는 승인된 멤버 전원, 작성은 본인 명의로만, 삭제는 작성자 본인 또는
+-- owner·manager. 수정은 없음(삭제 후 다시 작성).
+-- =====================================================================
+create table if not exists board_comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references board_posts(id) on delete cascade,
+  parent_comment_id uuid references board_comments(id) on delete cascade,
+  author_id uuid not null references auth.users(id) on delete cascade,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+do $$ begin
+  alter table board_comments
+    add constraint board_comments_author_id_profiles_fkey
+    foreign key (author_id) references profiles(id) on delete cascade;
+exception
+  when duplicate_object or duplicate_table then null;
+end $$;
+
+-- 답글의 답글을 막는다: parent_comment_id가 가리키는 댓글이 이미 답글(자신도 parent를 가짐)이면 에러.
+create or replace function public.enforce_board_comment_depth()
+returns trigger as $$
+declare
+  v_parent_has_parent boolean;
+begin
+  if new.parent_comment_id is not null then
+    select (parent_comment_id is not null) into v_parent_has_parent
+    from board_comments where id = new.parent_comment_id;
+
+    if v_parent_has_parent then
+      raise exception '답글에는 답글을 달 수 없습니다.';
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql set search_path = public;
+
+drop trigger if exists on_board_comments_insert on board_comments;
+create trigger on_board_comments_insert
+  before insert on board_comments
+  for each row execute procedure public.enforce_board_comment_depth();
+
+alter table board_comments enable row level security;
+
+drop policy if exists "board_comments_select_team_members" on board_comments;
+create policy "board_comments_select_team_members" on board_comments
+  for select to authenticated using (
+    exists (
+      select 1 from board_posts p
+      join team_members tm on tm.team_id = p.team_id
+      where p.id = board_comments.post_id
+        and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+drop policy if exists "board_comments_insert_self" on board_comments;
+create policy "board_comments_insert_self" on board_comments
+  for insert to authenticated with check (
+    author_id = auth.uid()
+    and exists (
+      select 1 from board_posts p
+      join team_members tm on tm.team_id = p.team_id
+      where p.id = board_comments.post_id
+        and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+drop policy if exists "board_comments_delete_own_or_manager" on board_comments;
+create policy "board_comments_delete_own_or_manager" on board_comments
+  for delete to authenticated using (
+    author_id = auth.uid()
+    or exists (
+      select 1 from board_posts p
+      join team_members tm on tm.team_id = p.team_id
+      where p.id = board_comments.post_id
+        and tm.user_id = auth.uid() and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  );
+
 -- 위쪽 notify는 team_policy 블록이 추가되기 전 위치라 team_policy까지는 못 덮는다.
 -- 파일 실행이 끝나는 진짜 마지막 지점에서 한 번 더 캐시를 갱신한다.
 notify pgrst, 'reload schema';

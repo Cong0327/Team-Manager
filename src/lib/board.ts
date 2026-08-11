@@ -69,3 +69,56 @@ export async function getBoardPost(postId: string): Promise<BoardPost | null> {
   if (error || !data) return null;
   return toBoardPost(supabase, data as BoardPostRow);
 }
+
+export type BoardComment = {
+  id: string;
+  post_id: string;
+  parent_comment_id: string | null;
+  author_id: string;
+  content: string;
+  created_at: string;
+  author: { email: string; name: string | null } | null;
+};
+
+// 최상위 댓글 + 그 댓글에 달린 답글(대댓글) 목록. DB 트리거가 2단계까지만 허용하므로
+// replies는 항상 최상위 댓글에만 매달린다.
+export type BoardCommentThread = BoardComment & { replies: BoardComment[] };
+
+type BoardCommentRow = {
+  id: string;
+  post_id: string;
+  parent_comment_id: string | null;
+  author_id: string;
+  content: string;
+  created_at: string;
+  author: { email: string; name: string | null } | { email: string; name: string | null }[] | null;
+};
+
+// 시간순으로 전부 가져와서 최상위/답글로 나눈다(글당 댓글 수가 적은 소규모 팀 앱 전제).
+export async function getBoardComments(postId: string): Promise<BoardCommentThread[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("board_comments")
+    .select("id, post_id, parent_comment_id, author_id, content, created_at, author:profiles(email, name)")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true });
+
+  if (error || !data) return [];
+
+  const rows: BoardComment[] = (data as BoardCommentRow[]).map((row) => ({
+    ...row,
+    author: Array.isArray(row.author) ? row.author[0] ?? null : row.author,
+  }));
+
+  const repliesByParent = new Map<string, BoardComment[]>();
+  for (const row of rows) {
+    if (!row.parent_comment_id) continue;
+    const list = repliesByParent.get(row.parent_comment_id) ?? [];
+    list.push(row);
+    repliesByParent.set(row.parent_comment_id, list);
+  }
+
+  return rows
+    .filter((row) => !row.parent_comment_id)
+    .map((row) => ({ ...row, replies: repliesByParent.get(row.id) ?? [] }));
+}
