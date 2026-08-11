@@ -4,19 +4,25 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setActiveTeam } from "@/lib/team-actions";
+import { PLATFORM_ADMIN_EMAIL } from "@/lib/dev-admin";
 
 export type SwitcherTeam = { id: string; name: string };
 
 // 사이드바 상단의 팀 표시/선택 영역. 단일 팀 사용을 전제로 하므로 소속 팀이 하나뿐이면
 // 전환할 것이 없어 드롭다운 없이 팀 이름만 보여준다. team_members가 여전히 여러 팀 소속을
 // 지원하므로(초대 링크로 다른 팀에도 들어갈 수 있음), 2개 이상이면 기존 드롭다운으로 전환한다.
+// 개발자 겸 관리자 테스트 계정(PLATFORM_ADMIN_EMAIL)만 테스트용 팀을 여러 개 만들어야 해서
+// 팀이 하나뿐이어도 드롭다운 + "새 팀 만들기" 링크를 계속 보여준다.
 export default function TeamSwitcher({
   teams,
   activeTeamId,
+  userEmail,
 }: {
   teams: SwitcherTeam[];
   activeTeamId: string | null;
+  userEmail: string | null;
 }) {
+  const isPlatformAdmin = userEmail === PLATFORM_ADMIN_EMAIL;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -49,7 +55,7 @@ export default function TeamSwitcher({
     );
   }
 
-  if (teams.length === 1) {
+  if (teams.length === 1 && !isPlatformAdmin) {
     return (
       <div className="flex h-14 items-center px-5">
         <span className="truncate font-semibold tracking-tight">{activeTeam.name}</span>
@@ -92,6 +98,18 @@ export default function TeamSwitcher({
             {team.name}
           </button>
         ))}
+        {isPlatformAdmin && (
+          <>
+            <div className="my-1 border-t border-black/[.08] dark:border-white/[.1]" />
+            <Link
+              href="/team"
+              onClick={() => setOpen(false)}
+              className="block rounded-lg px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-black/[.05] dark:text-zinc-400 dark:hover:bg-white/[.08]"
+            >
+              + 새 팀 만들기 (테스트용)
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );
