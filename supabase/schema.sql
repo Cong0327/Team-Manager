@@ -1235,6 +1235,77 @@ $$;
 
 grant execute on function public.join_team_via_invite(text) to authenticated;
 
+-- =====================================================================
+-- 게시판
+-- 제목/본문 + 사진 여러 장 첨부가 가능한 일반 게시판. 사진 파일은 사진첩(gallery_items)과
+-- 같은 'gallery' Storage 버킷의 '{team_id}/board/{post_id}/{uuid}.{ext}' 경로에 저장한다 —
+-- 그 버킷의 RLS가 경로 첫 폴더(team_id) 기준으로 이미 "팀의 승인된 멤버만 업로드/삭제"를
+-- 강제하므로 별도 버킷/정책 없이 그대로 재사용할 수 있다. image_paths에는 그 경로 목록만 담는다.
+-- 조회는 승인된 멤버 전원, 작성은 승인된 멤버 본인 명의로만, 수정은 작성자 본인,
+-- 삭제는 작성자 본인 또는 owner·manager(사진첩과 동일한 모더레이션 규칙).
+-- =====================================================================
+create table if not exists board_posts (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references teams(id) on delete cascade,
+  author_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  content text not null,
+  image_paths text[] not null default '{}',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- PostgREST가 author:profiles(email, name) 관계 임베딩을 찾을 수 있도록 profiles로도 FK를 건다
+-- (team_members 등에서 쓰는 것과 같은 이유 — 위 111번째 줄 주석 참고).
+do $$ begin
+  alter table board_posts
+    add constraint board_posts_author_id_profiles_fkey
+    foreign key (author_id) references profiles(id) on delete cascade;
+exception
+  when duplicate_object or duplicate_table then null;
+end $$;
+
+drop trigger if exists on_board_posts_updated on board_posts;
+create trigger on_board_posts_updated
+  before update on board_posts
+  for each row execute procedure public.set_updated_at();
+
+alter table board_posts enable row level security;
+
+drop policy if exists "board_posts_select_team_members" on board_posts;
+create policy "board_posts_select_team_members" on board_posts
+  for select to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = board_posts.team_id and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+drop policy if exists "board_posts_insert_self" on board_posts;
+create policy "board_posts_insert_self" on board_posts
+  for insert to authenticated with check (
+    author_id = auth.uid()
+    and exists (
+      select 1 from team_members tm
+      where tm.team_id = board_posts.team_id and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+drop policy if exists "board_posts_update_own" on board_posts;
+create policy "board_posts_update_own" on board_posts
+  for update to authenticated using (author_id = auth.uid()) with check (author_id = auth.uid());
+
+drop policy if exists "board_posts_delete_own_or_manager" on board_posts;
+create policy "board_posts_delete_own_or_manager" on board_posts
+  for delete to authenticated using (
+    author_id = auth.uid()
+    or exists (
+      select 1 from team_members tm
+      where tm.team_id = board_posts.team_id and tm.user_id = auth.uid()
+        and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  );
+
 -- 위쪽 notify는 team_policy 블록이 추가되기 전 위치라 team_policy까지는 못 덮는다.
 -- 파일 실행이 끝나는 진짜 마지막 지점에서 한 번 더 캐시를 갱신한다.
 notify pgrst, 'reload schema';
