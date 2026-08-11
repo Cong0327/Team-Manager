@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 
 export const ACTIVE_TEAM_COOKIE = "active_team_id";
@@ -26,7 +27,10 @@ export type TeamMembership = {
 
 // 로그인한 유저가 속한 모든 팀 멤버십(대기중 포함) + 팀 정보를 함께 가져온다.
 // 한 유저가 여러 팀에 동시에 속할 수 있다.
-export async function getMyTeamMemberships(): Promise<TeamMembership[]> {
+// cache()로 감쌌다 — 레이아웃과 getActiveMembership()(각 page.tsx)이 같은 요청 안에서
+// 각자 이 함수를 호출해 DB 쿼리가 매번 중복 실행되고 있었다(@/lib/supabase/server의
+// getCurrentUser 캐싱과 같은 이유).
+export const getMyTeamMemberships = cache(async (): Promise<TeamMembership[]> => {
   const user = await getCurrentUser();
   if (!user) return [];
 
@@ -47,7 +51,7 @@ export async function getMyTeamMemberships(): Promise<TeamMembership[]> {
     const team = Array.isArray(row.team) ? row.team[0] : row.team;
     return { ...row, team } as TeamMembership;
   });
-}
+});
 
 // 여러 팀 중 지금 화면에 보여줄 "활성 팀" 하나를 정한다.
 // active_team_id 쿠키가 가리키는 팀이 승인된 멤버십이면 그것을, 아니면(쿠키 없음/무효/
