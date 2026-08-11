@@ -170,14 +170,21 @@ create policy "team_members_select_approved_peers" on team_members
     and public.is_approved_team_member(team_members.team_id, auth.uid())
   );
 
--- 본인 명의로만 가입신청을 만들 수 있다 (다른 사람을 대신 가입시키는 것 방지).
--- role/status도 여기서 고정한다 — 안 그러면 클라이언트가 role='owner', status='approved'로
--- 직접 insert를 보내는 것만으로 권한을 위조할 수 있다(실제로 발견한 구멍). 초대 링크로 즉시
--- 승인시키는 경로는 이 정책을 우회하는 별도의 security definer 함수(join_team_via_invite)로만 연다.
+-- 가입은 초대 링크를 통해서만 가능하다 — 검색 후 가입신청을 보내는 "셀프 pending 등록" 경로는
+-- 더 이상 열어두지 않는다(team_members_insert_self 정책 폐지). 실제 가입 처리는 이 정책들을
+-- 전부 우회하는 별도의 security definer 함수(join_team_via_invite)로만 이루어진다.
 drop policy if exists "team_members_insert_self" on team_members;
-create policy "team_members_insert_self" on team_members
+
+-- 팀 생성자가 자기 자신을 owner+approved 행으로 등록하는 것만 허용한다. 조건은 "그 팀의
+-- teams.owner_id가 이미 나"인 경우로 한정한다 — 팀 생성(teams insert)이 owner_id=auth.uid()로
+-- 성공한 다음에만 통과하므로, 임의의 다른 사람 팀에 role='owner'로 위조 가입하는 건 여전히 막힌다.
+drop policy if exists "team_members_insert_owner_self" on team_members;
+create policy "team_members_insert_owner_self" on team_members
   for insert to authenticated with check (
-    user_id = auth.uid() and role = 'member' and status = 'pending'
+    user_id = auth.uid()
+    and role = 'owner'
+    and status = 'approved'
+    and exists (select 1 from teams t where t.id = team_members.team_id and t.owner_id = auth.uid())
   );
 
 -- 가입신청 승인/거절 + 매니저 지정 + 명단 정보(포지션/골/어시스트) 수정: 팀장은 무엇이든 바꿀 수 있다.
