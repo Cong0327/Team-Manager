@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { defaultDueDateForMonth, formatWon, shiftMonth, type MonthlyDues } from "@/lib/dues";
+import BottomSheet from "@/components/bottom-sheet";
 
 type Props = {
   teamId: string;
@@ -25,6 +26,8 @@ export default function DuesManager({ teamId, dues, canManage, isOwner, duesAcco
   const [accountLoading, setAccountLoading] = useState(false);
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 모바일 목록은 한 줄짜리 압축 리스트만 보여주고, 탭하면 이 user_id의 상세를 바텀시트로 연다.
+  const [openUserId, setOpenUserId] = useState<string | null>(null);
 
   const percent = dues.totalCount > 0 ? Math.round((dues.paidCount / dues.totalCount) * 100) : 0;
   const previousMonth = shiftMonth(dues.displayMonth, -1);
@@ -149,6 +152,8 @@ export default function DuesManager({ teamId, dues, canManage, isOwner, duesAcco
     }
     router.refresh();
   };
+
+  const openMember = dues.members.find((member) => member.user_id === openUserId) ?? null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -282,41 +287,53 @@ export default function DuesManager({ teamId, dues, canManage, isOwner, duesAcco
         </div>
       </section>
 
-      {/* 모바일(sm 미만): 카드형 목록 */}
-      <div className="flex flex-col gap-3 sm:hidden">
-        {dues.members.map((member) => {
-          const busy = loadingUserId === member.user_id;
-          return (
-            <div
-              key={member.user_id}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-black/[.08] p-4 dark:border-white/[.1]"
+      {/* 모바일(sm 미만): 한 줄짜리 압축 목록. 탭하면 상세가 바텀시트로 열린다. */}
+      <div className="flex flex-col gap-2 sm:hidden">
+        {dues.members.map((member) => (
+          <button
+            key={member.user_id}
+            onClick={() => setOpenUserId(member.user_id)}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-black/[.08] px-4 py-3 text-left dark:border-white/[.1]"
+          >
+            <span className="truncate font-medium">{member.name}</span>
+            <span
+              className={`shrink-0 rounded px-2 py-1 text-xs font-medium ${
+                member.pay?.paid
+                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                  : "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+              }`}
             >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{member.name}</p>
-                <p className="truncate text-xs text-zinc-500">{member.email ?? "이메일 없음"}</p>
-                <p className="text-xs text-zinc-400">
-                  {member.pay?.paid_at ? formatPaidAt(member.pay.paid_at) : "미납부"}
-                </p>
-              </div>
-              {canManage ? (
-                <button
-                  onClick={() => togglePaid(member)}
-                  disabled={busy || dues.amount === null}
-                  className={`shrink-0 rounded px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
-                    member.pay?.paid
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
-                      : "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-                  }`}
-                >
-                  {member.pay?.paid ? "납부 완료" : "미납"}
-                </button>
-              ) : (
-                <span className="shrink-0 text-sm">{member.pay?.paid ? "납부 완료" : "미납"}</span>
-              )}
-            </div>
-          );
-        })}
+              {member.pay?.paid ? "납부 완료" : "미납"}
+            </span>
+          </button>
+        ))}
       </div>
+
+      <BottomSheet open={openMember !== null} onClose={() => setOpenUserId(null)} title={openMember?.name ?? ""}>
+        {openMember && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-zinc-500">{openMember.email ?? "이메일 없음"}</p>
+            <p className="text-sm">
+              납부일: {openMember.pay?.paid_at ? formatPaidAt(openMember.pay.paid_at) : "아직 안 냄"}
+            </p>
+            {canManage ? (
+              <button
+                onClick={() => togglePaid(openMember)}
+                disabled={loadingUserId === openMember.user_id || dues.amount === null}
+                className={`self-start rounded px-4 py-2 text-sm font-medium disabled:opacity-50 ${
+                  openMember.pay?.paid
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                }`}
+              >
+                {openMember.pay?.paid ? "납부 완료" : "미납"}
+              </button>
+            ) : (
+              <span className="text-sm">{openMember.pay?.paid ? "납부 완료" : "미납"}</span>
+            )}
+          </div>
+        )}
+      </BottomSheet>
 
       {/* 데스크톱(sm 이상): 표 */}
       <div className="hidden overflow-x-auto rounded-2xl border border-black/[.08] sm:block dark:border-white/[.1]">

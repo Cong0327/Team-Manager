@@ -9,6 +9,7 @@ import {
   type MatchRecordAttendee,
   type TeamMatchRecord,
 } from "@/lib/records";
+import BottomSheet from "@/components/bottom-sheet";
 
 type Props = {
   record: TeamMatchRecord;
@@ -23,6 +24,8 @@ export default function MatchRecordDetail({ record, currentUserId, canManage }: 
   const [savingStatKey, setSavingStatKey] = useState<string | null>(null);
   const [votingEventId, setVotingEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 모바일 목록은 한 줄짜리 압축 리스트만 보여주고, 탭하면 이 user_id의 상세를 바텀시트로 연다.
+  const [openUserId, setOpenUserId] = useState<string | null>(null);
 
   const saveStat = async (
     attendee: MatchRecordAttendee,
@@ -86,6 +89,8 @@ export default function MatchRecordDetail({ record, currentUserId, canManage }: 
     router.refresh();
   };
 
+  const openAttendee = record.attendees.find((a) => a.user_id === openUserId) ?? null;
+
   return (
     <div className="flex flex-col gap-5">
       {error && (
@@ -111,51 +116,71 @@ export default function MatchRecordDetail({ record, currentUserId, canManage }: 
           </p>
         ) : (
           <>
-            {/* 모바일(sm 미만): 카드형 목록 */}
-            <div className="flex flex-col gap-3 sm:hidden">
+            {/* 모바일(sm 미만): 한 줄짜리 압축 목록. 탭하면 상세가 바텀시트로 열린다. */}
+            <div className="flex flex-col gap-2 sm:hidden">
               {record.attendees.map((attendee) => (
-                <div
+                <button
                   key={attendee.user_id}
-                  className="flex flex-col gap-2 rounded-xl border border-black/[.08] p-3 dark:border-white/[.1]"
+                  onClick={() => setOpenUserId(attendee.user_id)}
+                  className="flex w-full items-center justify-between gap-2 rounded-xl border border-black/[.08] px-4 py-3 text-left dark:border-white/[.1]"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{attendee.name || attendee.email || "이름 없음"}</span>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="truncate font-medium">{attendee.name || attendee.email || "이름 없음"}</span>
                     {attendee.isMom && (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">
                         ⭐ MOM
                       </span>
                     )}
                   </div>
-                  {attendee.name && attendee.email && (
-                    <p className="text-xs text-zinc-500">{attendee.email}</p>
+                  <span className="shrink-0 text-xs text-zinc-500">
+                    ⚽{attendee.goals} · 🅰{attendee.assists}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <BottomSheet
+              open={openAttendee !== null}
+              onClose={() => setOpenUserId(null)}
+              title={openAttendee?.name || openAttendee?.email || "이름 없음"}
+            >
+              {openAttendee && (
+                <div className="flex flex-col gap-4">
+                  {openAttendee.isMom && (
+                    <span className="self-start rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                      ⭐ MOM
+                    </span>
+                  )}
+                  {openAttendee.name && openAttendee.email && (
+                    <p className="text-sm text-zinc-500">{openAttendee.email}</p>
                   )}
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-xs text-zinc-500">골</span>
                       <StatCell
-                        value={attendee.goals}
-                        disabled={!canManage || savingStatKey === `${attendee.user_id}:goals`}
+                        value={openAttendee.goals}
+                        disabled={!canManage || savingStatKey === `${openAttendee.user_id}:goals`}
                         editable={canManage}
-                        onBlur={(value) => saveStat(attendee, "goals", value)}
+                        onBlur={(value) => saveStat(openAttendee, "goals", value)}
                       />
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-xs text-zinc-500">어시스트</span>
                       <StatCell
-                        value={attendee.assists}
-                        disabled={!canManage || savingStatKey === `${attendee.user_id}:assists`}
+                        value={openAttendee.assists}
+                        disabled={!canManage || savingStatKey === `${openAttendee.user_id}:assists`}
                         editable={canManage}
-                        onBlur={(value) => saveStat(attendee, "assists", value)}
+                        onBlur={(value) => saveStat(openAttendee, "assists", value)}
                       />
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-xs text-zinc-500">MOM 득표</span>
-                      <span>{attendee.voteCount}표</span>
+                      <span>{openAttendee.voteCount}표</span>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </BottomSheet>
 
             {/* 데스크톱(sm 이상): 표 */}
             <div className="hidden overflow-x-auto rounded-xl border border-black/[.08] sm:block dark:border-white/[.1]">

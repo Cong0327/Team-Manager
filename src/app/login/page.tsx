@@ -10,10 +10,15 @@ import { createClient } from "@/lib/supabase/client";
 // 심사 통과 전까지 버튼을 숨긴다 (CLAUDE.md의 Auth 절 참고).
 const KAKAO_LOGIN_ENABLED = false;
 
+// "아이디 기억하기"는 로그인 세션과 무관하게 이메일 입력칸만 채워주는 편의 기능이라
+// 쿠키/서버 세션이 아니라 브라우저 localStorage에 이메일만 저장한다(비밀번호는 저장 안 함).
+const REMEMBER_EMAIL_KEY = "team-manager:remembered-email";
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberEmail, setRememberEmail] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 초대 링크(/team/invite/[token])처럼 로그인 후 원래 가려던 곳으로 돌아가야 할 때 쓴다.
@@ -25,6 +30,13 @@ export default function LoginPage() {
     // 서버 렌더링 시점엔 "/"로 렌더해 hydration mismatch를 피하고, 마운트 후에만 갱신한다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (next) setNextPath(next);
+
+    // 저장된 이메일이 있으면 입력칸을 미리 채우고 체크박스도 켜둔다.
+    const savedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY);
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberEmail(true);
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,6 +52,13 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+
+    if (rememberEmail) {
+      localStorage.setItem(REMEMBER_EMAIL_KEY, email);
+    } else {
+      localStorage.removeItem(REMEMBER_EMAIL_KEY);
+    }
+
     router.push(nextPath);
     router.refresh();
   };
@@ -79,6 +98,14 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           className="rounded border border-black/[.15] px-3 py-2 dark:border-white/[.2]"
         />
+        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <input
+            type="checkbox"
+            checked={rememberEmail}
+            onChange={(e) => setRememberEmail(e.target.checked)}
+          />
+          아이디 기억하기
+        </label>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"

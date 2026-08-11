@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatWon, shiftMonth, type MonthlyPayRow } from "@/lib/dues";
+import BottomSheet from "@/components/bottom-sheet";
 
 type Props = {
   displayMonth: string;
@@ -38,8 +39,11 @@ function formatMonthLabel(yearMonth: string) {
 export default function DuesMemberView({ displayMonth, duesAccount, currentMonth, history }: Props) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  // 모바일 목록은 한 줄짜리 압축 리스트만 보여주고, 탭하면 이 행의 상세를 바텀시트로 연다.
+  const [openRowId, setOpenRowId] = useState<string | null>(null);
   const previousMonth = shiftMonth(displayMonth, -1);
   const nextMonth = shiftMonth(displayMonth, 1);
+  const openRow = history.find((row) => row.id === openRowId) ?? null;
 
   const copyAccount = async () => {
     if (!duesAccount) return;
@@ -115,25 +119,49 @@ export default function DuesMemberView({ displayMonth, duesAccount, currentMonth
           </p>
         ) : (
           <>
-            {/* 모바일(sm 미만): 카드형 목록 */}
-            <div className="flex flex-col gap-3 sm:hidden">
+            {/* 모바일(sm 미만): 한 줄짜리 압축 목록. 탭하면 상세가 바텀시트로 열린다. */}
+            <div className="flex flex-col gap-2 sm:hidden">
               {history.map((row) => (
-                <div
+                <button
                   key={row.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-black/[.08] p-4 dark:border-white/[.1]"
+                  onClick={() => setOpenRowId(row.id)}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-black/[.08] px-4 py-3 text-left dark:border-white/[.1]"
                 >
-                  <div className="min-w-0">
-                    <p className="font-medium">{formatMonthLabel(row.year_month.slice(0, 7))}</p>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatWon(row.amount)}</p>
-                    <p className="text-xs text-zinc-400">
-                      마감 {row.due_date}
-                      {row.paid_at && ` · 납부일 ${row.paid_at.slice(0, 10)}`}
-                    </p>
+                  <span className="font-medium">{formatMonthLabel(row.year_month.slice(0, 7))}</span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-sm text-zinc-500">{formatWon(row.amount)}</span>
+                    <PaidBadge paid={row.paid} />
                   </div>
-                  <PaidBadge paid={row.paid} />
-                </div>
+                </button>
               ))}
             </div>
+
+            <BottomSheet
+              open={openRow !== null}
+              onClose={() => setOpenRowId(null)}
+              title={openRow ? formatMonthLabel(openRow.year_month.slice(0, 7)) : ""}
+            >
+              {openRow && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-zinc-500">회비</span>
+                    <span className="text-sm font-medium">{formatWon(openRow.amount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-zinc-500">마감일</span>
+                    <span className="text-sm">{openRow.due_date}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-zinc-500">납부일</span>
+                    <span className="text-sm">{openRow.paid_at ? openRow.paid_at.slice(0, 10) : "-"}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-black/[.06] pt-3 dark:border-white/[.08]">
+                    <span className="text-sm text-zinc-500">상태</span>
+                    <PaidBadge paid={openRow.paid} />
+                  </div>
+                </div>
+              )}
+            </BottomSheet>
 
             {/* 데스크톱(sm 이상): 표 */}
             <div className="hidden overflow-x-auto rounded-2xl border border-black/[.08] sm:block dark:border-white/[.1]">
