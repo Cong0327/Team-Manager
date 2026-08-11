@@ -145,7 +145,8 @@ export default function DetailForm({
                   // 1순위를 2순위와 같은 포지션으로 바꾸면 2순위는 비워서 중복을 막는다.
                   if (next && next === secondaryPosition) setSecondaryPosition("");
                 }}
-                className="rounded border border-black/[.15] px-3 py-2 text-sm text-black dark:border-white/[.2] dark:bg-white/[.05]"
+                style={{ colorScheme: "light" }}
+                className="rounded border border-black/[.15] bg-white px-3 py-2 text-sm text-black dark:border-white/[.2]"
               >
                 <option value="">선택 안 함</option>
                 {POSITIONS.map((p) => (
@@ -162,7 +163,8 @@ export default function DetailForm({
                 value={secondaryPosition}
                 onChange={(e) => setSecondaryPosition(e.target.value)}
                 disabled={!primaryPosition}
-                className="rounded border border-black/[.15] px-3 py-2 text-sm text-black disabled:opacity-40 dark:border-white/[.2] dark:bg-white/[.05]"
+                style={{ colorScheme: "light" }}
+                className="rounded border border-black/[.15] bg-white px-3 py-2 text-sm text-black disabled:opacity-40 dark:border-white/[.2]"
               >
                 <option value="">선택 안 함</option>
                 {POSITIONS.filter((p) => p !== primaryPosition).map((p) => (
