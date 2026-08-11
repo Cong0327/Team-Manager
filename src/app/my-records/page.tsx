@@ -12,8 +12,7 @@ export default async function MyRecordsPage() {
   const membership = await getActiveMembership();
   if (!membership) redirect("/team");
 
-  const { team, role } = membership;
-  const canManage = role === "owner" || role === "manager";
+  const { team } = membership;
   const records = await getTeamMatchRecords(team.id, user.id);
 
   return (
@@ -23,7 +22,7 @@ export default async function MyRecordsPage() {
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{team.name}</p>
       </div>
 
-      <RecordsManager records={records} currentUserId={user.id} canManage={canManage} />
+      <RecordsManager records={records} />
     </main>
   );
 }
