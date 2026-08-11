@@ -163,6 +163,22 @@ as $$
   );
 $$;
 
+-- team_members_update_manager/team_members_delete_self_or_owner도 "매니저인가?"를 판단하려고
+-- team_members를 다시 select해야 해서 위와 같은 이유로 재귀에 걸린다. 같은 방식(security
+-- definer)으로 우회한다.
+create or replace function public.is_team_manager(p_team_id uuid, p_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from team_members
+    where team_id = p_team_id and user_id = p_user_id and status = 'approved' and role = 'manager'
+  );
+$$;
+
 drop policy if exists "team_members_select_approved_peers" on team_members;
 create policy "team_members_select_approved_peers" on team_members
   for select to authenticated using (
@@ -202,11 +218,7 @@ drop policy if exists "team_members_update_manager" on team_members;
 create policy "team_members_update_manager" on team_members
   for update to authenticated using (
     team_members.role = 'member'
-    and exists (
-      select 1 from team_members tm
-      where tm.team_id = team_members.team_id and tm.user_id = auth.uid()
-        and tm.status = 'approved' and tm.role = 'manager'
-    )
+    and public.is_team_manager(team_members.team_id, auth.uid())
   ) with check (role in ('member', 'manager'));
 
 -- 본인은 자기 팀 멤버십 행을 수정할 수 있다(포지션/등번호 자기 관리용).
@@ -274,11 +286,7 @@ create policy "team_members_delete_self_or_owner" on team_members
     )
     or (
       team_members.role = 'member'
-      and exists (
-        select 1 from team_members tm
-        where tm.team_id = team_members.team_id and tm.user_id = auth.uid()
-          and tm.status = 'approved' and tm.role = 'manager'
-      )
+      and public.is_team_manager(team_members.team_id, auth.uid())
     )
   );
 
