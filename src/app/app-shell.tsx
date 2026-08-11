@@ -149,46 +149,47 @@ export default function AppShell({
   return (
     <div className="flex flex-1">
       {showSidebar && (
+        // 고정 오버레이(position: fixed) 대신 폭을 애니메이션하는 일반 flex 자식으로 둔다 —
+        // 열고 닫을 때 옆의 콘텐츠 영역이 margin 트릭 없이 자연스럽게 밀리고 채워진다.
+        // overflow-hidden + 안쪽 w-56 래퍼로 폭이 줄어드는 동안 글자가 줄바꿈되지 않고 잘려 보이게 한다.
         <aside
-          className={`fixed inset-y-0 left-0 z-40 ${SIDEBAR_WIDTH} transform border-r border-black/[.08] bg-white pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] transition-transform duration-300 ease-in-out dark:border-white/[.1] dark:bg-zinc-950 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          className={`shrink-0 overflow-hidden border-r border-black/[.08] bg-white pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] transition-[width] duration-300 ease-in-out dark:border-white/[.1] dark:bg-zinc-950 ${
+            sidebarOpen ? SIDEBAR_WIDTH : "w-0"
           }`}
         >
-          <TeamSwitcher teams={teams} activeTeamId={activeTeamId} userEmail={user?.email ?? null} />
-          <nav className="flex flex-col gap-4 px-3 py-3">
-            {NAV_SECTIONS.map((section) => (
-              <div key={section.title} className="flex flex-col gap-0.5">
-                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                  {section.title}
-                </p>
-                {section.items.map((item) => {
-                  const active = isActive(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`rounded-lg px-3 py-2 text-sm transition-colors ${
-                        active
-                          ? "bg-black/[.06] font-medium text-foreground dark:bg-white/[.1]"
-                          : "text-zinc-600 hover:bg-black/[.05] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.08]"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
+          <div className={SIDEBAR_WIDTH}>
+            <TeamSwitcher teams={teams} activeTeamId={activeTeamId} userEmail={user?.email ?? null} />
+            <nav className="flex flex-col gap-4 px-3 py-3">
+              {NAV_SECTIONS.map((section) => (
+                <div key={section.title} className="flex flex-col gap-0.5">
+                  <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                    {section.title}
+                  </p>
+                  {section.items.map((item) => {
+                    const active = isActive(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                          active
+                            ? "bg-black/[.06] font-medium text-foreground dark:bg-white/[.1]"
+                            : "text-zinc-600 hover:bg-black/[.05] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.08]"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+          </div>
         </aside>
       )}
 
-      <div
-        className={`flex flex-1 flex-col transition-[margin-left] duration-300 ease-in-out ${
-          showSidebar && sidebarOpen ? "ml-56" : "ml-0"
-        }`}
-      >
+      <div className="flex flex-1 flex-col">
         <header className="flex min-h-14 items-center gap-3 border-b border-black/[.08] px-4 pt-[env(safe-area-inset-top)] dark:border-white/[.1]">
           {showSidebar && (
             <button
