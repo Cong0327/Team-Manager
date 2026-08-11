@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { calcAge } from "@/lib/age";
 import { POSITIONS, MAX_POSITIONS } from "@/lib/positions";
 import { PLATFORM_ADMIN_EMAIL } from "@/lib/dev-admin";
+import BottomSheet from "@/components/bottom-sheet";
 import type { RosterMember, TeamMemberRole } from "@/lib/teams";
 
 const ROLE_LABEL: Record<TeamMemberRole, string> = { owner: "감독", manager: "매니저", member: "팀원" };
@@ -39,6 +40,8 @@ export default function RosterTable({
   const [editingPositionsId, setEditingPositionsId] = useState<string | null>(null);
   const [draftPositions, setDraftPositions] = useState<string[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  // 모바일 목록은 한 줄짜리 압축 리스트만 보여주고, 탭하면 이 id의 상세를 바텀시트로 연다.
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
 
   // owner는 모든 행의 스탯을 고칠 수 있고, manager는 일반 팀원(role='member') 행만 고칠 수 있다.
   // (DB의 team_members_update_manager 정책과 짝이 맞아야 한다.)
@@ -143,91 +146,110 @@ export default function RosterTable({
       </button>
     );
 
+  const openMember = members.find((m) => m.id === openMemberId) ?? null;
+
   return (
     <>
-      {/* 모바일(sm 미만): 카드형 목록 */}
-      <div className="flex flex-col gap-3 sm:hidden">
-        {members.map((m) => {
-          const statsEditable = canEditStats(m);
-          const roleEditable = canManageRole(m);
-          const busy = loadingId === m.id;
-
-          return (
-            <div
-              key={m.id}
-              className="flex flex-col gap-3 rounded-2xl border border-black/[.08] p-4 dark:border-white/[.1]"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{m.profile?.name}</p>
-                  <p className="truncate text-xs text-zinc-500">{m.profile?.email ?? "알 수 없음"}</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-black/[.05] px-2 py-1 text-xs dark:bg-white/[.08]">
-                  {roleLabel(m)}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-sm">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs text-zinc-500">나이</span>
-                  <span>{calcAge(m.profile?.birth_date) ?? m.profile?.age ?? "-"}</span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs text-zinc-500">등번호</span>
-                  {jerseyCell(m, statsEditable, busy)}
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs text-zinc-500">가입일</span>
-                  <span className="text-zinc-500">{formatDate(m.created_at)}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-0.5 text-sm">
-                <span className="text-xs text-zinc-500">포지션</span>
-                {positionsCell(m, statsEditable)}
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 rounded-lg bg-black/[.02] py-2 text-center text-sm dark:bg-white/[.03]">
-                <div>
-                  <p className="text-xs text-zinc-500">골</p>
-                  <p className="font-medium">{m.goals}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-zinc-500">어시스트</p>
-                  <p className="font-medium">{m.assists}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-zinc-500">MOM</p>
-                  <p className="font-medium">{m.mom}</p>
-                </div>
-              </div>
-
-              {(roleEditable || canKick(m)) && (
-                <div className="flex gap-2 border-t border-black/[.06] pt-3 dark:border-white/[.08]">
-                  {roleEditable && (
-                    <button
-                      onClick={() => toggleManager(m)}
-                      disabled={busy}
-                      className="flex-1 rounded border border-black/[.15] px-3 py-1.5 text-xs disabled:opacity-50 dark:border-white/[.2]"
-                    >
-                      {m.role === "manager" ? "매니저 해제" : "매니저 지정"}
-                    </button>
-                  )}
-                  {canKick(m) && (
-                    <button
-                      onClick={() => kick(m)}
-                      disabled={busy}
-                      className="flex-1 rounded border border-red-300 px-3 py-1.5 text-xs text-red-600 disabled:opacity-50 dark:border-red-900"
-                    >
-                      제명
-                    </button>
-                  )}
-                </div>
-              )}
+      {/* 모바일(sm 미만): 한 줄짜리 압축 목록. 탭하면 상세가 바텀시트로 열린다. */}
+      <div className="flex flex-col gap-2 sm:hidden">
+        {members.map((m) => (
+          <button
+            key={m.id}
+            onClick={() => setOpenMemberId(m.id)}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-black/[.08] px-4 py-3 text-left dark:border-white/[.1]"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate font-medium">{m.profile?.name}</span>
+              <span className="shrink-0 text-xs text-zinc-500">{roleLabel(m)}</span>
             </div>
-          );
-        })}
+            <div className="flex shrink-0 items-center gap-2 text-xs text-zinc-500">
+              {m.jersey_number != null && <span>#{m.jersey_number}</span>}
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
+                <path d="M7.5 4.5 13 10l-5.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </button>
+        ))}
       </div>
+
+      {/* 모바일 상세/편집 바텀시트 — 목록에서 탭한 사람 한 명의 전체 정보를 보여준다. */}
+      <BottomSheet
+        open={openMember !== null}
+        onClose={() => setOpenMemberId(null)}
+        title={openMember?.profile?.name ?? ""}
+      >
+        {openMember && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <p className="truncate text-sm text-zinc-500">{openMember.profile?.email ?? "알 수 없음"}</p>
+              <span className="shrink-0 rounded-full bg-black/[.05] px-2 py-1 text-xs dark:bg-white/[.08]">
+                {roleLabel(openMember)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-zinc-500">나이</span>
+                <span>{calcAge(openMember.profile?.birth_date) ?? openMember.profile?.age ?? "-"}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-zinc-500">등번호</span>
+                {jerseyCell(openMember, canEditStats(openMember), loadingId === openMember.id)}
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-zinc-500">가입일</span>
+                <span className="text-zinc-500">{formatDate(openMember.created_at)}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-0.5 text-sm">
+              <span className="text-xs text-zinc-500">포지션</span>
+              {positionsCell(openMember, canEditStats(openMember))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 rounded-lg bg-black/[.02] py-2 text-center text-sm dark:bg-white/[.03]">
+              <div>
+                <p className="text-xs text-zinc-500">골</p>
+                <p className="font-medium">{openMember.goals}</p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500">어시스트</p>
+                <p className="font-medium">{openMember.assists}</p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500">MOM</p>
+                <p className="font-medium">{openMember.mom}</p>
+              </div>
+            </div>
+
+            {(canManageRole(openMember) || canKick(openMember)) && (
+              <div className="flex gap-2 border-t border-black/[.06] pt-3 dark:border-white/[.08]">
+                {canManageRole(openMember) && (
+                  <button
+                    onClick={() => toggleManager(openMember)}
+                    disabled={loadingId === openMember.id}
+                    className="flex-1 rounded border border-black/[.15] px-3 py-1.5 text-xs disabled:opacity-50 dark:border-white/[.2]"
+                  >
+                    {openMember.role === "manager" ? "매니저 해제" : "매니저 지정"}
+                  </button>
+                )}
+                {canKick(openMember) && (
+                  <button
+                    onClick={async () => {
+                      await kick(openMember);
+                      setOpenMemberId(null);
+                    }}
+                    disabled={loadingId === openMember.id}
+                    className="flex-1 rounded border border-red-300 px-3 py-1.5 text-xs text-red-600 disabled:opacity-50 dark:border-red-900"
+                  >
+                    제명
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </BottomSheet>
 
       {/* 데스크톱(sm 이상): 표 */}
       <div className="hidden overflow-x-auto rounded-2xl border border-black/[.08] sm:block dark:border-white/[.1]">
