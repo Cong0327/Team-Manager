@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { setActiveTeam } from "@/lib/team-actions";
 
 export default function CreateTeamPage() {
   const router = useRouter();
@@ -57,6 +58,8 @@ export default function CreateTeamPage() {
       return;
     }
 
+    // 새로 만든 팀을 바로 활성 팀으로 전환한다 (기존에 다른 팀이 있어도 방금 만든 팀을 보여준다).
+    await setActiveTeam(team.id);
     router.push("/");
     router.refresh();
   };

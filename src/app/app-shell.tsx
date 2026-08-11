@@ -2,13 +2,37 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import AccountMenu from "./account-menu";
+import TeamSwitcher, { type SwitcherTeam } from "./team-switcher";
 
-const NAV_ITEMS = [
-  { href: "/roster", label: "명단관리" },
-  { href: "/votes", label: "투표관리" },
-  { href: "/schedule", label: "일정관리" },
-  { href: "/gallery", label: "사진첩" },
+// 네비게이션을 성격별 섹션으로 묶어 가시성을 높인다. 각 섹션은 소제목 + 링크 목록으로 렌더된다.
+// 일부 항목은 여러 화면을 아우른다(경기일정=일정+투표, 게시판/사진첩=게시판+사진첩) — 대표 페이지로 연결한다.
+const NAV_SECTIONS: { title: string; items: { href: string; label: string }[] }[] = [
+  {
+    title: "메인",
+    items: [{ href: "/", label: "팀 메인으로" }],
+  },
+  {
+    title: "팀 관리",
+    items: [
+      { href: "/roster", label: "팀 명단" },
+      { href: "/schedule", label: "경기일정" },
+      { href: "/dues", label: "회비관리" },
+      { href: "/rules", label: "회칙" },
+    ],
+  },
+  {
+    title: "기록 및 게시판",
+    items: [
+      { href: "/my-records", label: "기록" },
+      { href: "/board", label: "게시판/사진첩" },
+    ],
+  },
+  {
+    title: "설정",
+    items: [{ href: "/account", label: "마이페이지" }],
+  },
 ];
 
 const SIDEBAR_WIDTH = "w-56";
@@ -17,60 +41,87 @@ const SIDEBAR_WIDTH = "w-56";
 // 사이드바 상태는 레이아웃에 살아있는 동안(같은 세션 내 페이지 이동)에는 유지된다.
 export default function AppShell({
   user,
+  teams,
+  activeTeamId,
   children,
 }: {
   user: { email: string } | null;
+  teams: SwitcherTeam[];
+  activeTeamId: string | null;
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const pathname = usePathname();
+  // 로그인 + 소속된(승인된) 팀이 하나라도 있어야 좌측 네비게이션을 보여준다.
+  // 로그인 전이거나(팀/로그인 화면), 팀이 아직 없는 사용자(/team 허브)에게는 사이드바 자체를 숨긴다.
+  const showSidebar = Boolean(user) && teams.length > 0;
+
+  // 현재 경로에 해당하는 항목을 강조한다. "/"는 정확히 일치할 때만, 나머지는 하위 경로까지 포함.
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <div className="flex flex-1">
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 ${SIDEBAR_WIDTH} transform border-r border-black/[.08] bg-white transition-transform duration-300 ease-in-out dark:border-white/[.1] dark:bg-zinc-950 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex h-14 items-center px-5">
-          <Link href="/" className="font-semibold tracking-tight">
-            Team Manager
-          </Link>
-        </div>
-        <nav className="flex flex-col gap-1 px-3 py-2">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-lg px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-black/[.05] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.08]"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
+      {showSidebar && (
+        <aside
+          className={`fixed inset-y-0 left-0 z-40 ${SIDEBAR_WIDTH} transform border-r border-black/[.08] bg-white transition-transform duration-300 ease-in-out dark:border-white/[.1] dark:bg-zinc-950 ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <TeamSwitcher teams={teams} activeTeamId={activeTeamId} />
+          <nav className="flex flex-col gap-4 px-3 py-3">
+            {NAV_SECTIONS.map((section) => (
+              <div key={section.title} className="flex flex-col gap-0.5">
+                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                  {section.title}
+                </p>
+                {section.items.map((item) => {
+                  const active = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                        active
+                          ? "bg-black/[.06] font-medium text-foreground dark:bg-white/[.1]"
+                          : "text-zinc-600 hover:bg-black/[.05] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.08]"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+        </aside>
+      )}
 
       <div
         className={`flex flex-1 flex-col transition-[margin-left] duration-300 ease-in-out ${
-          sidebarOpen ? "ml-56" : "ml-0"
+          showSidebar && sidebarOpen ? "ml-56" : "ml-0"
         }`}
       >
         <header className="flex h-14 items-center gap-3 border-b border-black/[.08] px-4 dark:border-white/[.1]">
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            aria-label={sidebarOpen ? "메뉴 닫기" : "메뉴 열기"}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[.06] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.1]"
-          >
-            <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
-              <path
-                d="M3 5.5H17M3 10H17M3 14.5H17"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
+          {showSidebar && (
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              aria-label={sidebarOpen ? "메뉴 닫기" : "메뉴 열기"}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[.06] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.1]"
+            >
+              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+                <path
+                  d="M3 5.5H17M3 10H17M3 14.5H17"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          )}
 
-          {!sidebarOpen && (
+          {(!showSidebar || !sidebarOpen) && (
             <Link href="/" className="font-semibold tracking-tight">
               Team Manager
             </Link>
