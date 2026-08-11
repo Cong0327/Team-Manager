@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { TeamEvent } from "@/lib/events";
+import type { TeamEvent, EventType } from "@/lib/events";
 import EventModal from "./event-modal";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -29,12 +29,22 @@ type ModalState = { date: Date; event?: TeamEvent };
 
 type Props = {
   teamId: string;
+  teamName: string;
   events: TeamEvent[];
   canManage: boolean;
   currentUserId: string;
+  // 이 캘린더에서 새 일정을 만들 때의 기본 유형(스케줄 화면의 유형 필터와 맞춘다).
+  defaultEventType?: EventType;
 };
 
-export default function Calendar({ teamId, events, canManage, currentUserId }: Props) {
+export default function Calendar({
+  teamId,
+  teamName,
+  events,
+  canManage,
+  currentUserId,
+  defaultEventType,
+}: Props) {
   const today = new Date();
   const [viewDate, setViewDate] = useState(new Date());
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -153,9 +163,24 @@ export default function Calendar({ teamId, events, canManage, currentUserId }: P
                   <button
                     key={event.id}
                     onClick={() => setModal({ date: cellDate, event })}
-                    className="truncate rounded bg-foreground/[.08] px-1.5 py-0.5 text-left text-[11px] leading-tight text-foreground hover:bg-foreground/[.15] dark:bg-white/[.1] dark:hover:bg-white/[.18]"
+                    className="flex items-center gap-1 rounded bg-foreground/[.08] px-1.5 py-0.5 text-left leading-tight text-foreground hover:bg-foreground/[.15] dark:bg-white/[.1] dark:hover:bg-white/[.18]"
                   >
-                    {formatTime(event.starts_at)} {event.title} ({event.participant_count})
+                    {/* 유형 구분 도트: 경기=빨강, 훈련=초록, 기타=회색 */}
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                        event.event_type === "match"
+                          ? "bg-red-500"
+                          : event.event_type === "training"
+                            ? "bg-emerald-500"
+                            : "bg-zinc-400"
+                      }`}
+                      aria-hidden
+                    />
+                    {/* 경기는 상대팀명을, 그 외는 제목을 보여준다. */}
+                    <span className="truncate text-[11px]">
+                      {event.event_type === "match" ? `vs ${event.opponent_name}` : event.title} (
+                      {formatTime(event.starts_at)})
+                    </span>
                   </button>
                 ))}
               </div>
@@ -167,10 +192,12 @@ export default function Calendar({ teamId, events, canManage, currentUserId }: P
       {modal && (
         <EventModal
           teamId={teamId}
+          teamName={teamName}
           date={modal.date}
           event={modal.event}
           canManage={canManage}
           currentUserId={currentUserId}
+          defaultEventType={defaultEventType}
           onClose={() => setModal(null)}
         />
       )}
