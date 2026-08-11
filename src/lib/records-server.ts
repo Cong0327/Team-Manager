@@ -89,3 +89,14 @@ export async function getTeamMatchRecords(teamId: string, currentUserId: string)
     };
   });
 }
+
+// 경기 기록 상세 페이지(/my-records/[eventId])용: 전체 목록에서 해당 경기 하나만 골라낸다.
+// 팀 전체 지난 경기 수가 적은 소규모 동호회 기준이라 목록 계산 로직을 그대로 재사용해도 부담 없다.
+export async function getMatchRecord(
+  teamId: string,
+  eventId: string,
+  currentUserId: string
+): Promise<TeamMatchRecord | null> {
+  const records = await getTeamMatchRecords(teamId, currentUserId);
+  return records.find((record) => record.id === eventId) ?? null;
+}
