@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 // 상단바 우측 계정 드롭다운. 바깥을 클릭하면 자동으로 닫힌다.
-export default function AccountMenu({ email }: { email: string }) {
+// 마이페이지에서 이름을 등록했으면 이름을, 안 했으면 이메일을 표시한다.
+export default function AccountMenu({ email, name }: { email: string; name: string | null }) {
   const router = useRouter();
+  const displayName = name || email;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -33,10 +35,10 @@ export default function AccountMenu({ email }: { email: string }) {
         className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 text-sm transition-colors hover:bg-black/[.05] dark:hover:bg-white/[.08]"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">
-          {email.charAt(0).toUpperCase()}
+          {displayName.charAt(0).toUpperCase()}
         </span>
         <span className="hidden max-w-[140px] truncate text-zinc-700 sm:inline dark:text-zinc-300">
-          {email}
+          {displayName}
         </span>
         <svg
           viewBox="0 0 12 8"
@@ -56,7 +58,7 @@ export default function AccountMenu({ email }: { email: string }) {
             : "pointer-events-none scale-95 opacity-0"
         }`}
       >
-        <p className="truncate px-3 pb-1.5 pt-2 text-xs text-zinc-400 sm:hidden">{email}</p>
+        <p className="truncate px-3 pb-1.5 pt-2 text-xs text-zinc-400 sm:hidden">{displayName}</p>
         <Link
           href="/account"
           onClick={() => setOpen(false)}

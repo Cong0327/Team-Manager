@@ -45,7 +45,7 @@ export default function AppShell({
   activeTeamId,
   children,
 }: {
-  user: { email: string } | null;
+  user: { email: string; name: string | null } | null;
   teams: SwitcherTeam[];
   activeTeamId: string | null;
   children: React.ReactNode;
@@ -64,7 +64,7 @@ export default function AppShell({
     <div className="flex flex-1">
       {showSidebar && (
         <aside
-          className={`fixed inset-y-0 left-0 z-40 ${SIDEBAR_WIDTH} transform border-r border-black/[.08] bg-white transition-transform duration-300 ease-in-out dark:border-white/[.1] dark:bg-zinc-950 ${
+          className={`fixed inset-y-0 left-0 z-40 ${SIDEBAR_WIDTH} transform border-r border-black/[.08] bg-white pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] transition-transform duration-300 ease-in-out dark:border-white/[.1] dark:bg-zinc-950 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -103,7 +103,7 @@ export default function AppShell({
           showSidebar && sidebarOpen ? "ml-56" : "ml-0"
         }`}
       >
-        <header className="flex h-14 items-center gap-3 border-b border-black/[.08] px-4 dark:border-white/[.1]">
+        <header className="flex min-h-14 items-center gap-3 border-b border-black/[.08] px-4 pt-[env(safe-area-inset-top)] dark:border-white/[.1]">
           {showSidebar && (
             <button
               onClick={() => setSidebarOpen((v) => !v)}
@@ -129,7 +129,7 @@ export default function AppShell({
 
           <div className="ml-auto">
             {user ? (
-              <AccountMenu email={user.email} />
+              <AccountMenu email={user.email} name={user.name} />
             ) : (
               <Link
                 href="/login"
