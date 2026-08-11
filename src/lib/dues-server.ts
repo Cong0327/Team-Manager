@@ -14,15 +14,18 @@ export type MyDuesOverview = {
 // Server Component에서만 쓸 수 있다" 에러가 난다(실제로 겪은 버그).
 export async function getMonthlyDues(teamId: string, month: string): Promise<MonthlyDues> {
   const supabase = await createClient();
-  const roster = await getTeamRoster(teamId);
   const yearMonth = monthToDate(month);
 
-  const { data: pays } = await supabase
-    .from("team_monthly_pay")
-    .select("id, team_id, user_id, year_month, amount, due_date, paid, paid_at, created_at")
-    .eq("team_id", teamId)
-    .eq("year_month", yearMonth)
-    .order("created_at", { ascending: true });
+  // 서로 의존관계 없는 조회라 Promise.all로 동시에 보낸다.
+  const [roster, { data: pays }] = await Promise.all([
+    getTeamRoster(teamId),
+    supabase
+      .from("team_monthly_pay")
+      .select("id, team_id, user_id, year_month, amount, due_date, paid, paid_at, created_at")
+      .eq("team_id", teamId)
+      .eq("year_month", yearMonth)
+      .order("created_at", { ascending: true }),
+  ]);
 
   const payByUserId = new Map((pays ?? []).map((pay) => [pay.user_id, pay as MonthlyPayRow]));
   const firstPay = (pays ?? [])[0] as MonthlyPayRow | undefined;

@@ -58,19 +58,22 @@ export async function getTeamEvents(teamId: string): Promise<TeamEvent[]> {
 
   if (error || !events || events.length === 0) return [];
 
-  const { count: approvedMemberCount } = await supabase
-    .from("team_members")
-    .select("id", { count: "exact", head: true })
-    .eq("team_id", teamId)
-    .eq("status", "approved");
-
-  const { data: participants } = await supabase
-    .from("event_participants")
-    .select("event_id, user_id, status")
-    .in(
-      "event_id",
-      events.map((e) => e.id)
-    );
+  // 서로 의존관계 없는 두 조회를 순차 실행하면 왕복이 그대로 더해져서(특히 지연이 큰 환경에서
+  // 체감이 큼) Promise.all로 동시에 보낸다.
+  const [{ count: approvedMemberCount }, { data: participants }] = await Promise.all([
+    supabase
+      .from("team_members")
+      .select("id", { count: "exact", head: true })
+      .eq("team_id", teamId)
+      .eq("status", "approved"),
+    supabase
+      .from("event_participants")
+      .select("event_id, user_id, status")
+      .in(
+        "event_id",
+        events.map((e) => e.id)
+      ),
+  ]);
 
   return events.map((event) => {
     const rows = participants?.filter((p) => p.event_id === event.id) ?? [];

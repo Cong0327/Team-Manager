@@ -17,14 +17,15 @@ export default async function AccountPage() {
   if (!user) redirect("/login");
 
   const hasKakao = user.identities?.some((i) => i.provider === "kakao") ?? false;
-  const profile = await getMyProfile();
+
+  // profile/membership은 서로 의존관계가 없어 동시에 조회한다.
+  const [profile, membership] = await Promise.all([getMyProfile(), getActiveMembership()]);
 
   // 상세정보/기록 카드는 현재 활성 팀 기준이다. 활성 팀이 없으면 팀 관련 항목은 비활성으로 표시한다.
-  const membership = await getActiveMembership();
-  const entry = membership ? await getMyRosterEntry(membership.team.id) : null;
-  const matchStats = membership
-    ? await getMyMatchStats(membership.team.id)
-    : { totalMatches: 0, attendedCount: 0, attendanceRate: null, attendedMatches: [] };
+  // entry/matchStats도 서로 의존관계가 없어 동시에 조회한다.
+  const [entry, matchStats] = membership
+    ? await Promise.all([getMyRosterEntry(membership.team.id), getMyMatchStats(membership.team.id)])
+    : [null, { totalMatches: 0, attendedCount: 0, attendanceRate: null, attendedMatches: [] }];
 
   // 나이는 생년월일로 계산하되, 예전 age만 있는 사용자는 그 값을 폴백으로 쓴다(명단 표와 동일).
   const age = calcAge(profile?.birth_date) ?? profile?.age ?? null;

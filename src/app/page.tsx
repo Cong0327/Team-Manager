@@ -21,8 +21,11 @@ export default async function Home() {
   if (!membership) redirect("/team");
 
   const { team, role } = membership;
-  const approvedMembers = role === "owner" ? await getApprovedMembers(team.id) : [];
-  const events = await getTeamEvents(team.id);
+  // 서로 의존관계 없는 조회라 Promise.all로 동시에 보낸다(순차 await은 왕복 지연이 그대로 더해짐).
+  const [approvedMembers, events] = await Promise.all([
+    role === "owner" ? getApprovedMembers(team.id) : Promise.resolve([]),
+    getTeamEvents(team.id),
+  ]);
   const canManageEvents = role === "owner" || role === "manager";
 
   const { upcomingMatch, pastMatches } = splitMatches(events);
