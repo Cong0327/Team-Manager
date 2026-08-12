@@ -58,7 +58,7 @@ export default function PwaInstallGuide() {
   };
 
   return (
-    <section className="pwa-install-guide mx-auto w-full max-w-4xl rounded-2xl border border-blue-200/70 bg-blue-50/60 p-4 shadow-sm sm:hidden dark:border-blue-900/50 dark:bg-blue-950/20">
+    <section id="pwa-install" className="pwa-install-guide scroll-mt-20 mx-auto w-full max-w-4xl rounded-2xl border border-blue-200/70 bg-blue-50/60 p-4 shadow-sm sm:hidden dark:border-blue-900/50 dark:bg-blue-950/20">
       <div className="flex items-start gap-3">
         <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-lg text-white">＋</span>
         <div className="min-w-0 flex-1">

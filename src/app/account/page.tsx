@@ -53,7 +53,7 @@ export default async function AccountPage({
       <h1 className="text-xl font-semibold">마이페이지</h1>
 
       {/* 카드 1: 계정 (이메일 · 카카오톡 연동 · 로그아웃) */}
-      <section className="flex flex-col gap-4 rounded-2xl border border-black/[.08] p-5 dark:border-white/[.1]">
+      <section id="kakao" className="scroll-mt-20 flex flex-col gap-4 rounded-2xl border border-black/[.08] p-5 dark:border-white/[.1]">
         <h2 className="text-sm font-semibold text-zinc-500">계정</h2>
 
         {kakaoParam === "linked" && (
@@ -80,7 +80,7 @@ export default async function AccountPage({
       </section>
 
       {/* 카드 2: 상세정보 (본인이 직접 수정) */}
-      <section className="flex flex-col gap-4 rounded-2xl border border-black/[.08] p-5 dark:border-white/[.1]">
+      <section id="profile" className="scroll-mt-20 flex flex-col gap-4 rounded-2xl border border-black/[.08] p-5 dark:border-white/[.1]">
         <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-zinc-500">상세정보</h2>
           {membership && (
@@ -88,6 +88,7 @@ export default async function AccountPage({
           )}
         </div>
 
+        <div id="player-info" className="scroll-mt-20">
         <DetailForm
           userId={user.id}
           memberId={entry?.id ?? null}
@@ -97,6 +98,7 @@ export default async function AccountPage({
           initialPositions={entry?.positions ?? []}
           initialJersey={entry?.jersey_number ?? null}
         />
+        </div>
 
         {/* 출전 경기: 경기로 '참석'한 내역 (읽기 전용, 자동 집계) */}
         <div className="flex flex-col gap-2 border-t border-black/[.06] pt-4 dark:border-white/[.08]">

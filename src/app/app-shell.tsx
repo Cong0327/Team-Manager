@@ -32,7 +32,10 @@ const NAV_SECTIONS: { title: string; items: { href: string; label: string }[] }[
   },
   {
     title: "설정",
-    items: [{ href: "/account", label: "마이페이지" }],
+    items: [
+      { href: "/account", label: "마이페이지" },
+      { href: "/guide", label: "사용법" },
+    ],
   },
 ];
 
