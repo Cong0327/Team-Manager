@@ -58,7 +58,7 @@ export default async function Home() {
       <UpcomingRsvpCard events={events} currentUserId={user.id} />
 
       {/* 3. 다가오는 경기 */}
-      <UpcomingMatchCard match={upcomingMatch} currentUserId={user.id} />
+      <UpcomingMatchCard match={upcomingMatch} />
 
       {/* 3. 지난 경기 결과 */}
       <PastMatchesCard
