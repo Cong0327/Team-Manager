@@ -43,7 +43,7 @@ const ROLE_LABEL: Record<TeamMemberRole, string> = { owner: "감독", manager: "
 // 실제 팀 감독은 "감독"으로, 개발자 겸 관리자 테스트 계정만 "관리자"로 구분해서 보여준다
 // (권한은 동일 — 표기만 다름. @/lib/dev-admin 참고).
 function roleLabel(member: RosterMember) {
-  if (member.role === "owner" && member.profile?.email === PLATFORM_ADMIN_EMAIL) return "관리자";
+  if (member.profile?.email === PLATFORM_ADMIN_EMAIL) return "관리자";
   return ROLE_LABEL[member.role];
 }
 
@@ -59,11 +59,13 @@ function formatDate(iso: string) {
 // 열이 11개라 좁은 화면에서 표로는 한눈에 안 들어와서, 모바일(sm 미만)은 카드형 목록,
 // 데스크톱(sm 이상)은 기존 표로 같은 데이터를 다르게 보여준다(로직/상태는 공유).
 export default function RosterTable({
+  teamId,
   members,
   viewerRole,
   viewerEmail,
   currentSeasonName,
 }: {
+  teamId: string;
   members: RosterMemberWithStats[];
   viewerRole: TeamMemberRole;
   viewerEmail: string | null;
@@ -73,6 +75,7 @@ export default function RosterTable({
   const [editingPositionsId, setEditingPositionsId] = useState<string | null>(null);
   const [draftPositions, setDraftPositions] = useState<string[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
   // 모바일 목록은 한 줄짜리 압축 리스트만 보여주고, 탭하면 이 id의 상세를 바텀시트로 연다.
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
 
@@ -80,14 +83,16 @@ export default function RosterTable({
   // (역할 변경/제명 — DB의 enforce_team_member_update 트리거·team_members_delete_self_or_owner
   // 정책도 같은 기준으로 확장돼 있다).
   const isViewerOwnerOrAdmin = viewerRole === "owner" || viewerEmail === PLATFORM_ADMIN_EMAIL;
+  const isPlatformAdmin = viewerEmail === PLATFORM_ADMIN_EMAIL;
 
   // owner(+관리자)는 모든 행의 스탯을 고칠 수 있고, manager는 일반 팀원(role='member') 행만 고칠 수 있다.
   // (DB의 team_members_update_manager 정책과 짝이 맞아야 한다.)
   const canEditStats = (target: RosterMember) =>
     isViewerOwnerOrAdmin || (viewerRole === "manager" && target.role === "member");
-  // 역할 변경(부주장 ↔ 팀원)은 감독·관리자만 할 수 있다 — 부주장은 더 이상 못 한다
-  // (예전엔 부주장도 일반 팀원을 부주장으로 지정할 수 있었으나, 정책 변경으로 제외했다).
-  const canManageRole = (target: RosterMember) => target.role !== "owner" && isViewerOwnerOrAdmin;
+  // 관리자는 새 감독까지 지정할 수 있고, 감독은 일반 구성원을 부주장/팀원으로 변경할 수 있다.
+  // 현재 감독은 새 감독 지정 과정에서만 자동으로 팀원이 되므로 직접 강등 셀렉트는 열지 않는다.
+  const canManageRole = (target: RosterMember) =>
+    target.role !== "owner" && (isPlatformAdmin || viewerRole === "owner");
   // 제명은 감독·관리자만 가능하다(DB team_members_delete_self_or_owner 정책과 짝이 맞아야 한다).
   // 감독 행은 애초에 제명 대상이 아니다.
   const canKick = (target: RosterMember) => target.role !== "owner" && isViewerOwnerOrAdmin;
@@ -100,10 +105,35 @@ export default function RosterTable({
     router.refresh();
   };
 
-  const changeRole = async (member: RosterMember, nextRole: "manager" | "member") => {
+  const changeRole = async (member: RosterMember, nextRole: TeamMemberRole) => {
     if (nextRole === member.role) return;
-    await updateFields(member.id, { role: nextRole });
+    const label = member.profile?.name || member.profile?.email || "해당 팀원";
+    if (
+      nextRole === "owner" &&
+      !confirm(`${label}님을 새 감독으로 지정할까요? 기존 감독은 팀원으로 변경됩니다.`)
+    ) {
+      return;
+    }
+
+    setLoadingId(member.id);
+    setRoleError(null);
+    const supabase = createClient();
+    const { error } = await supabase.rpc("change_team_member_role", {
+      p_team_id: teamId,
+      p_member_id: member.id,
+      p_role: nextRole,
+    });
+    setLoadingId(null);
+    if (error) {
+      setRoleError(error.message);
+      return;
+    }
+    router.refresh();
   };
+
+  const roleOptions = isPlatformAdmin
+    ? (["owner", "manager", "member"] as const)
+    : (["manager", "member"] as const);
 
   const kick = async (member: RosterMember) => {
     const label = member.profile?.name || member.profile?.email || "이 팀원";
@@ -275,12 +305,13 @@ export default function RosterTable({
                     <span className="text-zinc-500">역할</span>
                     <select
                       value={openMember.role}
-                      onChange={(e) => changeRole(openMember, e.target.value as "manager" | "member")}
+                      onChange={(e) => changeRole(openMember, e.target.value as TeamMemberRole)}
                       disabled={loadingId === openMember.id}
                       className="rounded border border-black/[.15] px-3 py-2 text-sm disabled:opacity-50 dark:border-white/[.2]"
                     >
-                      <option value="manager">부주장</option>
-                      <option value="member">팀원</option>
+                      {roleOptions.map((role) => (
+                        <option key={role} value={role}>{ROLE_LABEL[role]}</option>
+                      ))}
                     </select>
                   </label>
                 )}
@@ -298,6 +329,7 @@ export default function RosterTable({
                 )}
               </div>
             )}
+            {roleError && <p className="text-sm text-red-600">{roleError}</p>}
           </div>
         )}
       </BottomSheet>
@@ -355,12 +387,13 @@ export default function RosterTable({
                     {roleEditable ? (
                       <select
                         value={m.role}
-                        onChange={(e) => changeRole(m, e.target.value as "manager" | "member")}
+                        onChange={(e) => changeRole(m, e.target.value as TeamMemberRole)}
                         disabled={busy}
                         className="rounded border border-black/[.15] px-2 py-1 text-sm disabled:opacity-50 dark:border-white/[.2]"
                       >
-                        <option value="manager">부주장</option>
-                        <option value="member">팀원</option>
+                        {roleOptions.map((role) => (
+                          <option key={role} value={role}>{ROLE_LABEL[role]}</option>
+                        ))}
                       </select>
                     ) : (
                       <span>{roleLabel(m)}</span>
@@ -383,6 +416,7 @@ export default function RosterTable({
           </tbody>
         </table>
       </div>
+      {roleError && <p className="text-sm text-red-600">{roleError}</p>}
     </>
   );
 }
