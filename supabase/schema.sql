@@ -127,9 +127,18 @@ drop policy if exists "teams_select_authenticated" on teams;
 create policy "teams_select_authenticated" on teams
   for select to authenticated using (true);
 
+-- 팀 생성은 개발자 겸 관리자 테스트 계정만 할 수 있다(팀 생성을 전적으로 관리자가 통제하기로 함).
+-- auth.users는 authenticated 롤에 SELECT 권한이 없어(권한 거부 에러) 정책에서 직접 못 쓴다 —
+-- 대신 이미 전체 공개 조회가 허용된 public.profiles로 이메일을 확인한다.
+-- 이메일을 하드코딩한다 — src/lib/dev-admin.ts의 PLATFORM_ADMIN_EMAIL과 반드시 같은 값으로 맞춰야 한다.
 drop policy if exists "teams_insert_self_owner" on teams;
 create policy "teams_insert_self_owner" on teams
-  for insert to authenticated with check (owner_id = auth.uid());
+  for insert to authenticated with check (
+    owner_id = auth.uid()
+    and exists (
+      select 1 from public.profiles p where p.id = auth.uid() and p.email = 'hsp400@naver.com'
+    )
+  );
 
 drop policy if exists "teams_update_owner" on teams;
 create policy "teams_update_owner" on teams

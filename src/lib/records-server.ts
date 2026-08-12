@@ -10,7 +10,6 @@ import {
   type TeamMatchRecord,
   type TeamSeasonSummary,
 } from "@/lib/records";
-import type { TeamEvent } from "@/lib/events";
 
 type ParticipantRow = {
   event_id: string;

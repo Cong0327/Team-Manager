@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 // 이메일+비밀번호만 받는 간단한 회원가입 폼.
-// Supabase 프로젝트 설정에 따라 가입 후 이메일 인증이 필요할 수 있다.
+// Supabase에서 이메일 인증(Confirm email)을 꺼둬서, 가입 즉시 로그인할 수 있다.
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,10 +41,8 @@ export default function SignupPage() {
   if (status === "done") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-20 text-center">
-        <h1 className="text-xl font-semibold">가입 신청 완료</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          이메일 인증이 켜져 있다면 받은편지함에서 확인해주세요.
-        </p>
+        <h1 className="text-xl font-semibold">가입 완료</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">이제 로그인할 수 있어요.</p>
         <Link href={loginHref} className="text-sm underline">
           로그인하러 가기
         </Link>
