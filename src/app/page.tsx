@@ -8,7 +8,6 @@ import Calendar from "./calendar";
 import UpcomingRsvpCard from "./upcoming-rsvp-card";
 import UpcomingMatchCard from "./upcoming-match-card";
 import PastMatchesCard from "./past-matches-card";
-import TodoCard from "./todo-card";
 import QuickLinksCard from "./quick-links-card";
 import HomeRulesCard from "./home-rules-card";
 import LatestMomCard from "./latest-mom-card";
@@ -70,10 +69,7 @@ export default async function Home() {
         currentUserId={user.id}
       />
 
-      {/* 4. 해야할일 */}
-      <TodoCard upcomingMatch={upcomingMatch} />
-
-      {/* 5. 빠른이동 */}
+      {/* 4. 빠른이동 */}
       <QuickLinksCard />
     </main>
   );
