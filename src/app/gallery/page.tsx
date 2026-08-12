@@ -18,10 +18,10 @@ export default async function GalleryPage() {
   const canModerate = role === "owner" || role === "manager";
 
   return (
-    <main className="flex flex-1 flex-col gap-4 px-6 py-10">
+    <main className="app-page flex flex-1 flex-col gap-5 px-3 py-4 sm:px-6 sm:py-8">
       <div>
-        <h1 className="text-xl font-semibold">사진첩</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="page-eyebrow">Gallery</p><h1 className="page-title">사진첩</h1>
+        <p className="page-subtitle">
           {team.name} · {items.length}개 ·{" "}
           <Link href="/board" className="underline hover:text-foreground">
             게시판 보기

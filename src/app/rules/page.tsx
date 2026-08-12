@@ -17,10 +17,10 @@ export default async function RulesPage() {
   const canManage = role === "owner"; // 감독만 생성/수정 가능
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-3 py-4 sm:px-6 sm:py-8">
       <div>
-        <h1 className="text-xl font-semibold">회칙</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{team.name}</p>
+        <p className="page-eyebrow">Team rules</p><h1 className="page-title">회칙</h1>
+        <p className="page-subtitle">{team.name}</p>
       </div>
 
       <RulesManager teamId={team.id} currentUserId={user.id} policies={policies} canManage={canManage} />

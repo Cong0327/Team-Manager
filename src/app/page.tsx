@@ -43,38 +43,37 @@ export default async function Home() {
         )}
       </div>
 
-      <PwaInstallGuide />
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 [&>.surface-card]:max-w-none">
+        <PwaInstallGuide />
+        <div className="grid gap-4 lg:grid-cols-2 [&>.surface-card]:max-w-none">
+          <HomeRulesCard policies={policies} />
+          <LatestMomCard summary={latestMom} />
+        </div>
 
-      <HomeRulesCard policies={policies} />
-
-      <LatestMomCard summary={latestMom} />
-
-      {/* 1. 캘린더 */}
-      <Calendar
-        teamId={team.id}
-        teamName={team.name}
-        events={events}
-        canManage={canManageEvents}
-        currentUserId={user.id}
-      />
-
-      {/* 2. 다가오는 일정 참석 투표 (캘린더 클릭 없이 같은 화면에서 바로 투표) */}
-      <UpcomingRsvpCard events={events} currentUserId={user.id} />
-
-      {/* 3. 다가오는 경기 */}
-      <UpcomingMatchCard match={upcomingMatch} />
-
-      {/* 3. 지난 경기 결과 */}
-      <PastMatchesCard
-        matches={pastMatches}
-        teamId={team.id}
-        teamName={team.name}
-        canManage={canManageEvents}
-        currentUserId={user.id}
-      />
-
-      {/* 4. 빠른이동 */}
-      <QuickLinksCard />
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,.75fr)]">
+          <div className="[&>.surface-card]:max-w-none">
+            <Calendar
+              teamId={team.id}
+              teamName={team.name}
+              events={events}
+              canManage={canManageEvents}
+              currentUserId={user.id}
+            />
+          </div>
+          <div className="flex flex-col gap-4 [&>.surface-card]:max-w-none">
+            <UpcomingRsvpCard events={events} currentUserId={user.id} />
+            <UpcomingMatchCard match={upcomingMatch} />
+            <PastMatchesCard
+              matches={pastMatches}
+              teamId={team.id}
+              teamName={team.name}
+              canManage={canManageEvents}
+              currentUserId={user.id}
+            />
+          </div>
+        </div>
+        <div className="[&>.surface-card]:max-w-none"><QuickLinksCard /></div>
+      </div>
     </main>
   );
 }

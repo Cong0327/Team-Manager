@@ -34,17 +34,17 @@ export default async function MyRecordsPage({
   const myRow = buildSeasonLeaderboard(records).find((row) => row.user_id === user.id) ?? null;
 
   return (
-    <main className="flex flex-1 flex-col gap-6 px-6 py-10">
+    <main className="app-page flex flex-1 flex-col gap-5 px-3 py-4 sm:px-6 sm:py-8">
       <div>
-        <h1 className="text-xl font-semibold">개인 기록</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="page-eyebrow">My performance</p><h1 className="page-title">개인 기록</h1>
+        <p className="page-subtitle">
           {team.name} · 참여자별 골·어시스트·MOM 투표
         </p>
       </div>
 
       <SeasonSelect seasons={seasons} selectedSeasonId={selectedSeason?.id ?? null} />
 
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="content-card p-4 text-sm font-medium text-slate-700">
         내 {selectedSeason ? selectedSeason.name : "전체 기간"} 기록 · ⚽ {myRow?.goals ?? 0}골 · 🅰
         {myRow?.assists ?? 0}도움 · ⭐ MOM {myRow?.momCount ?? 0}회 · {myRow?.matchesPlayed ?? 0}경기 출전
       </p>
