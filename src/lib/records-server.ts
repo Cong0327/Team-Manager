@@ -7,12 +7,83 @@ import {
   type EventPlayerStatRow,
   type TeamMatchRecord,
 } from "@/lib/records";
+import type { TeamEvent } from "@/lib/events";
 
 type ParticipantRow = {
   event_id: string;
   user_id: string;
   status: "attending" | "declined";
 };
+
+export type LatestMatchMom = {
+  userId: string;
+  name: string;
+  jerseyNumber: number | null;
+  positions: string[];
+  goals: number;
+  assists: number;
+  voteCount: number;
+};
+
+export type LatestMatchMomSummary = {
+  match: Pick<TeamEvent, "id" | "starts_at" | "opponent_name" | "our_score" | "opponent_score">;
+  winners: LatestMatchMom[];
+};
+
+// 홈 화면에는 가장 최근 경기의 MOM만 필요하다. 전체 경기 기록을 조립하지 않고
+// 해당 경기의 투표·스탯·명단만 병렬 조회해 대시보드의 응답 크기와 쿼리량을 줄인다.
+export async function getLatestMatchMom(
+  teamId: string,
+  match: TeamEvent | null
+): Promise<LatestMatchMomSummary | null> {
+  if (!match) return null;
+
+  const supabase = await createClient();
+  const [{ data: votes }, { data: stats }, roster] = await Promise.all([
+    supabase
+      .from("event_mom_votes")
+      .select("voted_for_user_id")
+      .eq("event_id", match.id),
+    supabase
+      .from("event_player_stats")
+      .select("user_id, goals, assists")
+      .eq("event_id", match.id),
+    getTeamRoster(teamId),
+  ]);
+
+  const voteCountByUserId = new Map<string, number>();
+  for (const vote of votes ?? []) {
+    voteCountByUserId.set(
+      vote.voted_for_user_id,
+      (voteCountByUserId.get(vote.voted_for_user_id) ?? 0) + 1
+    );
+  }
+
+  const topVoteCount = Math.max(0, ...voteCountByUserId.values());
+  if (topVoteCount === 0) {
+    return { match, winners: [] };
+  }
+
+  const statsByUserId = new Map((stats ?? []).map((stat) => [stat.user_id, stat]));
+  const rosterByUserId = new Map(roster.map((member) => [member.user_id, member]));
+  const winners = [...voteCountByUserId.entries()]
+    .filter(([, count]) => count === topVoteCount)
+    .map(([userId, voteCount]) => {
+      const member = rosterByUserId.get(userId);
+      const stat = statsByUserId.get(userId);
+      return {
+        userId,
+        name: member?.profile?.name ?? member?.profile?.email ?? "이름 미등록",
+        jerseyNumber: member?.jersey_number ?? null,
+        positions: member?.positions ?? [],
+        goals: stat?.goals ?? 0,
+        assists: stat?.assists ?? 0,
+        voteCount,
+      };
+    });
+
+  return { match, winners };
+}
 
 // 경기 기록 화면은 여러 테이블을 한 카드 단위로 합쳐야 하므로 서버에서 한 번에 조립해 클라이언트 변경 로직을 단순하게 둔다.
 export async function getTeamMatchRecords(teamId: string, currentUserId: string): Promise<TeamMatchRecord[]> {
