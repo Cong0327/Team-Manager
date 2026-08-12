@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUser, createClient } from "@/lib/supabase/server";
-import { setActiveTeam } from "@/lib/team-actions";
+import { getCurrentUser } from "@/lib/supabase/server";
+import InviteAccept from "./invite-accept";
 
 // 초대 링크 진입점. 비로그인 상태에서는 서버 redirect를 쓰지 않고 정상 안내 화면을
 // 렌더링한다. 스트리밍이 시작된 뒤 redirect가 발생하면 일부 모바일/PWA 브라우저에서
@@ -52,22 +51,7 @@ export default async function TeamInvitePage({
     );
   }
 
-  const supabase = await createClient();
-  const { data: teamId, error } = await supabase.rpc("join_team_via_invite", {
-    p_token: token,
-  });
-
-  if (error || !teamId) {
-    return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-20 text-center">
-        <h1 className="text-lg font-semibold">유효하지 않은 초대 링크예요</h1>
-        <p className="text-sm text-zinc-500">
-          링크가 만료되었거나 잘못됐을 수 있어요. 팀장에게 새 링크를 요청해 주세요.
-        </p>
-      </main>
-    );
-  }
-
-  await setActiveTeam(teamId as string);
-  redirect("/");
+  // 가입 DB 변경과 active_team_id 쿠키 설정은 렌더 중에 실행하지 않고 Route Handler에
+  // 요청한다. Next.js 16은 Server Component 렌더 중 쿠키 수정을 허용하지 않는다.
+  return <InviteAccept token={token} />;
 }
