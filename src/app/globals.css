@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 홈 화면에서 standalone PWA로 실행 중이면 설치 안내는 이미 불필요하다. */
+@media (display-mode: standalone) {
+  .pwa-install-guide {
+    display: none;
+  }
+}
