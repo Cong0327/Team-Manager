@@ -3,12 +3,14 @@ import { getCurrentUser } from "@/lib/supabase/server";
 import { getMyProfile } from "@/lib/profile";
 import { getActiveMembership } from "@/lib/teams";
 import { getMyRosterEntry, getMyMatchStats } from "@/lib/player-stats";
+import { getMySeasonBreakdown } from "@/lib/season-stats-server";
 import { getKakaoLinkStatus } from "@/lib/kakao";
 import { calcAge } from "@/lib/age";
 import LinkKakaoButton from "./link-kakao-button";
 import UnlinkKakaoButton from "./unlink-kakao-button";
 import LogoutButton from "./logout-button";
 import DetailForm from "./detail-form";
+import SeasonStatPicker from "./season-stat-picker";
 
 export default async function AccountPage({
   searchParams,
@@ -29,10 +31,18 @@ export default async function AccountPage({
   ]);
 
   // 상세정보/기록 카드는 현재 활성 팀 기준이다. 활성 팀이 없으면 팀 관련 항목은 비활성으로 표시한다.
-  // entry/matchStats도 서로 의존관계가 없어 동시에 조회한다.
-  const [entry, matchStats] = membership
-    ? await Promise.all([getMyRosterEntry(membership.team.id), getMyMatchStats(membership.team.id)])
-    : [null, { totalMatches: 0, attendedCount: 0, attendanceRate: null, attendedMatches: [] }];
+  // entry/matchStats/seasonBreakdown도 서로 의존관계가 없어 동시에 조회한다.
+  const [entry, matchStats, seasonBreakdown] = membership
+    ? await Promise.all([
+        getMyRosterEntry(membership.team.id),
+        getMyMatchStats(membership.team.id),
+        getMySeasonBreakdown(membership.team.id, user.id),
+      ])
+    : [
+        null,
+        { totalMatches: 0, attendedCount: 0, attendanceRate: null, attendedMatches: [] },
+        { seasons: [], total: { goals: 0, assists: 0, matchesPlayed: 0 }, bySeasonId: {} },
+      ];
 
   // 나이는 생년월일로 계산하되, 예전 age만 있는 사용자는 그 값을 폴백으로 쓴다(명단 표와 동일).
   const age = calcAge(profile?.birth_date) ?? profile?.age ?? null;
@@ -134,10 +144,15 @@ export default async function AccountPage({
               </div>
             </div>
 
-            {/* 하단: 스탯 그리드 (골 · 어시스트 · MOM · 출석률 · 경기) */}
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-              <Stat label="골" value={entry?.goals ?? 0} />
-              <Stat label="어시스트" value={entry?.assists ?? 0} />
+            {/* 골/어시스트는 시즌 선택에 따라 값이 바뀐다(기본값: 전체 기록). */}
+            <SeasonStatPicker
+              seasons={seasonBreakdown.seasons}
+              total={seasonBreakdown.total}
+              bySeasonId={seasonBreakdown.bySeasonId}
+            />
+
+            {/* MOM · 출석률 · 경기는 시즌 구분 없이 그대로 보여준다. */}
+            <div className="grid grid-cols-3 gap-3">
               <Stat label="MOM" value={entry?.mom ?? 0} />
               <Stat
                 label="출석률"
@@ -154,7 +169,7 @@ export default async function AccountPage({
   );
 }
 
-// 기록 카드의 스탯 한 칸.
+// 기록 카드의 스탯 한 칸 (MOM · 출석률 · 경기처럼 시즌 구분 없는 단일 값용).
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="flex flex-col items-center gap-1 rounded-xl bg-black/[.02] py-3 dark:bg-white/[.03]">

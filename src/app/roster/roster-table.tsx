@@ -9,6 +9,34 @@ import { PLATFORM_ADMIN_EMAIL } from "@/lib/dev-admin";
 import BottomSheet from "@/components/bottom-sheet";
 import type { RosterMember, TeamMemberRole } from "@/lib/teams";
 
+// 골/어시스트는 시즌 기준 합계(현재 시즌 지정 안 됐으면 0) + 전체 누적을 함께 보여준다.
+type RosterMemberWithStats = RosterMember & {
+  seasonGoals: number;
+  seasonAssists: number;
+  totalGoals: number;
+  totalAssists: number;
+};
+
+// "5 +12" 형태: 앞쪽 큰 숫자는 현재 시즌 합계, 뒤쪽 작은 +N은 전체(통합) 누적.
+// 지정된 현재 시즌이 없으면 "0 +N"처럼 헷갈리게 보이지 않도록 전체 누적값 하나만 보여준다.
+function GoalAssistCell({
+  seasonValue,
+  totalValue,
+  hasCurrentSeason,
+}: {
+  seasonValue: number;
+  totalValue: number;
+  hasCurrentSeason: boolean;
+}) {
+  if (!hasCurrentSeason) return <span>{totalValue}</span>;
+  return (
+    <span>
+      {seasonValue}
+      <span className="ml-1 text-xs text-zinc-400">+{totalValue}</span>
+    </span>
+  );
+}
+
 const ROLE_LABEL: Record<TeamMemberRole, string> = { owner: "감독", manager: "매니저", member: "팀원" };
 
 // 실제 팀 감독은 "감독"으로, 개발자 겸 관리자 테스트 계정만 "관리자"로 구분해서 보여준다
@@ -32,9 +60,11 @@ function formatDate(iso: string) {
 export default function RosterTable({
   members,
   viewerRole,
+  currentSeasonName,
 }: {
-  members: RosterMember[];
+  members: RosterMemberWithStats[];
   viewerRole: TeamMemberRole;
+  currentSeasonName: string | null;
 }) {
   const router = useRouter();
   const [editingPositionsId, setEditingPositionsId] = useState<string | null>(null);
@@ -210,11 +240,17 @@ export default function RosterTable({
             <div className="grid grid-cols-3 gap-2 rounded-lg bg-black/[.02] py-2 text-center text-sm dark:bg-white/[.03]">
               <div>
                 <p className="text-xs text-zinc-500">골</p>
-                <p className="font-medium">{openMember.goals}</p>
+                <p className="font-medium">
+                  <GoalAssistCell seasonValue={openMember.seasonGoals} totalValue={openMember.totalGoals} hasCurrentSeason={currentSeasonName !== null} />
+                </p>
+                <p className="text-[10px] text-zinc-400">{currentSeasonName ?? "전체 누적"}</p>
               </div>
               <div>
                 <p className="text-xs text-zinc-500">어시스트</p>
-                <p className="font-medium">{openMember.assists}</p>
+                <p className="font-medium">
+                  <GoalAssistCell seasonValue={openMember.seasonAssists} totalValue={openMember.totalAssists} hasCurrentSeason={currentSeasonName !== null} />
+                </p>
+                <p className="text-[10px] text-zinc-400">{currentSeasonName ?? "전체 누적"}</p>
               </div>
               <div>
                 <p className="text-xs text-zinc-500">MOM</p>
@@ -262,8 +298,18 @@ export default function RosterTable({
               <th className="px-3 py-2.5 font-medium">등번호</th>
               <th className="px-3 py-2.5 font-medium">포지션</th>
               <th className="px-3 py-2.5 font-medium">가입일</th>
-              <th className="px-3 py-2.5 font-medium">골</th>
-              <th className="px-3 py-2.5 font-medium">어시스트</th>
+              <th className="px-3 py-2.5 font-medium">
+                골
+                <span className="block text-[10px] font-normal normal-case text-zinc-400">
+                  {currentSeasonName ?? "전체 누적"}
+                </span>
+              </th>
+              <th className="px-3 py-2.5 font-medium">
+                어시스트
+                <span className="block text-[10px] font-normal normal-case text-zinc-400">
+                  {currentSeasonName ?? "전체 누적"}
+                </span>
+              </th>
               <th className="px-3 py-2.5 font-medium">MOM</th>
               <th className="px-3 py-2.5 font-medium">역할</th>
               <th className="px-3 py-2.5 font-medium">제명</th>
@@ -283,8 +329,12 @@ export default function RosterTable({
                   <td className="px-3 py-2.5">{jerseyCell(m, statsEditable, busy)}</td>
                   <td className="px-3 py-2.5">{positionsCell(m, statsEditable)}</td>
                   <td className="px-3 py-2.5 text-zinc-500">{formatDate(m.created_at)}</td>
-                  <td className="px-3 py-2.5">{m.goals}</td>
-                  <td className="px-3 py-2.5">{m.assists}</td>
+                  <td className="px-3 py-2.5">
+                    <GoalAssistCell seasonValue={m.seasonGoals} totalValue={m.totalGoals} hasCurrentSeason={currentSeasonName !== null} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <GoalAssistCell seasonValue={m.seasonAssists} totalValue={m.totalAssists} hasCurrentSeason={currentSeasonName !== null} />
+                  </td>
                   <td className="px-3 py-2.5">{m.mom}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex flex-col items-start gap-1">
