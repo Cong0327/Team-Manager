@@ -151,7 +151,7 @@ export default function Calendar({
                   <button
                     onClick={() => setModal({ date: cellDate })}
                     aria-label="일정 추가"
-                    className="hidden h-5 w-5 items-center justify-center rounded text-zinc-400 hover:bg-black/[.06] hover:text-foreground group-hover:flex dark:hover:bg-white/[.1]"
+                    className="flex h-5 w-5 items-center justify-center rounded text-zinc-400 hover:bg-black/[.06] hover:text-foreground sm:hidden sm:group-hover:flex dark:hover:bg-white/[.1]"
                   >
                     +
                   </button>
