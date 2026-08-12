@@ -60,6 +60,7 @@ export default async function RosterPage({
       <SeasonSelect seasons={seasons} selectedSeasonId={selectedSeason?.id ?? null} />
 
       <RosterTable
+        teamId={team.id}
         members={rosterWithStats}
         viewerRole={role}
         viewerEmail={user.email ?? null}

@@ -292,6 +292,83 @@ create trigger on_team_member_update
   before update on team_members
   for each row execute procedure public.enforce_team_member_update();
 
+-- 명단관리 역할 변경을 한 곳에서 원자적으로 처리한다.
+-- 관리자 계정은 감독/부주장/팀원을 지정할 수 있고, 감독은 부주장/팀원만 지정할 수 있다.
+-- 감독 지정은 team_members.role뿐 아니라 teams.owner_id도 함께 바꿔 권한 판정이 어긋나지 않게 한다.
+create or replace function public.change_team_member_role(
+  p_team_id uuid,
+  p_member_id uuid,
+  p_role team_member_role
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_target_user_id uuid;
+  v_current_owner_id uuid;
+  v_is_admin boolean;
+  v_is_owner boolean;
+begin
+  select exists (
+    select 1 from profiles p
+    where p.id = auth.uid() and p.email = 'hsp400@naver.com'
+  ) into v_is_admin;
+
+  select t.owner_id, t.owner_id = auth.uid()
+    into v_current_owner_id, v_is_owner
+  from teams t
+  where t.id = p_team_id;
+
+  if v_current_owner_id is null then
+    raise exception '존재하지 않는 팀입니다.';
+  end if;
+
+  select tm.user_id into v_target_user_id
+  from team_members tm
+  where tm.id = p_member_id
+    and tm.team_id = p_team_id
+    and tm.status = 'approved';
+
+  if v_target_user_id is null then
+    raise exception '승인된 팀원을 찾을 수 없습니다.';
+  end if;
+
+  if p_role = 'owner' then
+    if not v_is_admin then
+      raise exception '감독 지정은 관리자만 할 수 있습니다.';
+    end if;
+
+    if v_target_user_id = v_current_owner_id then return; end if;
+
+    update team_members
+      set role = 'member'
+      where team_id = p_team_id and user_id = v_current_owner_id;
+    update teams set owner_id = v_target_user_id where id = p_team_id;
+    update team_members set role = 'owner' where id = p_member_id;
+    return;
+  end if;
+
+  if p_role not in ('manager', 'member') then
+    raise exception '변경할 수 없는 역할입니다.';
+  end if;
+
+  if not (v_is_admin or v_is_owner) then
+    raise exception '역할 변경 권한이 없습니다.';
+  end if;
+
+  if v_target_user_id = v_current_owner_id then
+    raise exception '현재 감독을 강등하려면 먼저 새 감독을 지정해 주세요.';
+  end if;
+
+  update team_members set role = p_role where id = p_member_id;
+end;
+$$;
+
+revoke all on function public.change_team_member_role(uuid, uuid, team_member_role) from public;
+grant execute on function public.change_team_member_role(uuid, uuid, team_member_role) to authenticated;
+
 -- 본인 가입신청 취소/탈퇴(자기 자신 삭제)는 역할과 무관하게 항상 허용한다.
 -- 제명(다른 사람을 팀에서 삭제)은 감독(owner)과 관리자 계정만 할 수 있다 — 매니저는 더 이상 못 한다
 -- (예전엔 매니저도 일반 팀원을 제명할 수 있었으나, 정책 변경으로 제외했다).
