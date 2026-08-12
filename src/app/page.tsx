@@ -11,6 +11,7 @@ import PastMatchesCard from "./past-matches-card";
 import QuickLinksCard from "./quick-links-card";
 import HomeRulesCard from "./home-rules-card";
 import LatestMomCard from "./latest-mom-card";
+import PwaInstallGuide from "./pwa-install-guide";
 
 // 진입점 라우팅: 비로그인 -> /login, 승인된 팀 없음 -> /team, 있음 -> 활성 팀 대시보드.
 // 여러 팀에 속해 있으면 사이드바 팀 스위처가 정한 active_team_id 쿠키 기준으로 활성 팀을 고른다.
@@ -40,6 +41,8 @@ export default async function Home() {
           <p className="text-sm text-zinc-600 dark:text-zinc-400">{team.region}</p>
         )}
       </div>
+
+      <PwaInstallGuide />
 
       <HomeRulesCard policies={policies} />
 
