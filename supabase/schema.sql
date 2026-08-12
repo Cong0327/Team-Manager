@@ -237,8 +237,9 @@ create policy "team_members_update_self" on team_members
   for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- 컬럼별 편집 권한 강제: RLS는 "행"만 제어하므로, 어떤 "컬럼"을 바꿀 수 있는지는 트리거로 막는다.
---   * 감독(팀 owner): 자기 팀 모든 행의 모든 컬럼 수정 가능.
---   * 매니저: role='member' 행의 스탯까지 수정 가능(명단관리 페이지와 동일 규칙).
+--   * 감독(팀 owner) + 관리자 계정: 자기 팀(관리자는 어느 팀이든) 모든 행의 모든 컬럼 수정 가능.
+--   * 매니저: role='member' 행의 스탯(포지션/등번호/골/어시스트/MOM)까지 수정 가능하지만
+--     role은 못 바꾼다 — 역할 변경은 감독·관리자 전용(명단관리 페이지 셀렉트박스와 짝이 맞아야 함).
 --   * 그 외(=본인이 자기 행 수정): positions/jersey_number만 변경 가능. goals/assists/mom/role/status 등은 거부.
 create or replace function public.enforce_team_member_update()
 returns trigger as $$
@@ -249,6 +250,8 @@ declare
 begin
   select exists (
     select 1 from teams t where t.id = new.team_id and t.owner_id = auth.uid()
+  ) or exists (
+    select 1 from public.profiles p where p.id = auth.uid() and p.email = 'hsp400@naver.com'
   ) into is_owner;
 
   select exists (
@@ -257,7 +260,12 @@ begin
       and tm.status = 'approved' and tm.role = 'manager'
   ) into is_manager;
 
-  -- 명단관리의 canEditStats와 동일: owner는 전부, manager는 일반 팀원(member) 행만.
+  -- 역할(role) 변경은 감독·관리자만 할 수 있다 — 매니저는 스탯은 고쳐도 역할은 못 바꾼다.
+  if new.role is distinct from old.role and not is_owner then
+    raise exception '역할 변경은 감독만 할 수 있습니다.';
+  end if;
+
+  -- 명단관리의 canEditStats와 동일: owner(+관리자)는 전부, manager는 일반 팀원(member) 행만.
   can_edit_stats := is_owner or (is_manager and old.role = 'member');
 
   if can_edit_stats then
@@ -284,17 +292,20 @@ create trigger on_team_member_update
   before update on team_members
   for each row execute procedure public.enforce_team_member_update();
 
--- 본인 가입신청 취소, 팀장의 신청 거절/명단 제명, 매니저의 일반 팀원 제명(추방)을 허용한다.
--- 매니저는 role='member' 행만 제명할 수 있다(owner/다른 매니저는 제명 불가).
--- 제명(다른 사람을 팀에서 삭제)은 감독(owner)만 할 수 있다 — 매니저는 더 이상 못 한다
--- (예전엔 매니저도 일반 팀원을 제명할 수 있었으나, 정책 변경으로 제외했다). 본인 가입신청
--- 취소/탈퇴(자기 자신 삭제)는 역할과 무관하게 항상 허용한다.
+-- 본인 가입신청 취소/탈퇴(자기 자신 삭제)는 역할과 무관하게 항상 허용한다.
+-- 제명(다른 사람을 팀에서 삭제)은 감독(owner)과 관리자 계정만 할 수 있다 — 매니저는 더 이상 못 한다
+-- (예전엔 매니저도 일반 팀원을 제명할 수 있었으나, 정책 변경으로 제외했다).
+-- 관리자 계정은 이메일을 하드코딩해 확인한다 — src/lib/dev-admin.ts의 PLATFORM_ADMIN_EMAIL과
+-- 반드시 같은 값으로 맞춰야 한다(teams_insert_self_owner 정책과 동일한 패턴).
 drop policy if exists "team_members_delete_self_or_owner" on team_members;
 create policy "team_members_delete_self_or_owner" on team_members
   for delete to authenticated using (
     user_id = auth.uid()
     or exists (
       select 1 from teams t where t.id = team_members.team_id and t.owner_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.profiles p where p.id = auth.uid() and p.email = 'hsp400@naver.com'
     )
   );
 

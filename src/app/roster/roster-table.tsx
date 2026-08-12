@@ -37,7 +37,8 @@ function GoalAssistCell({
   );
 }
 
-const ROLE_LABEL: Record<TeamMemberRole, string> = { owner: "감독", manager: "매니저", member: "팀원" };
+// "부주장"은 매니저(manager)의 새 표기다 — DB 값(team_member_role enum)은 그대로 'manager'다.
+const ROLE_LABEL: Record<TeamMemberRole, string> = { owner: "감독", manager: "부주장", member: "팀원" };
 
 // 실제 팀 감독은 "감독"으로, 개발자 겸 관리자 테스트 계정만 "관리자"로 구분해서 보여준다
 // (권한은 동일 — 표기만 다름. @/lib/dev-admin 참고).
@@ -60,10 +61,12 @@ function formatDate(iso: string) {
 export default function RosterTable({
   members,
   viewerRole,
+  viewerEmail,
   currentSeasonName,
 }: {
   members: RosterMemberWithStats[];
   viewerRole: TeamMemberRole;
+  viewerEmail: string | null;
   currentSeasonName: string | null;
 }) {
   const router = useRouter();
@@ -73,15 +76,21 @@ export default function RosterTable({
   // 모바일 목록은 한 줄짜리 압축 리스트만 보여주고, 탭하면 이 id의 상세를 바텀시트로 연다.
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
 
-  // owner는 모든 행의 스탯을 고칠 수 있고, manager는 일반 팀원(role='member') 행만 고칠 수 있다.
+  // 관리자 계정(PLATFORM_ADMIN_EMAIL)은 어느 팀에서든 감독과 동일한 권한을 갖는다
+  // (역할 변경/제명 — DB의 enforce_team_member_update 트리거·team_members_delete_self_or_owner
+  // 정책도 같은 기준으로 확장돼 있다).
+  const isViewerOwnerOrAdmin = viewerRole === "owner" || viewerEmail === PLATFORM_ADMIN_EMAIL;
+
+  // owner(+관리자)는 모든 행의 스탯을 고칠 수 있고, manager는 일반 팀원(role='member') 행만 고칠 수 있다.
   // (DB의 team_members_update_manager 정책과 짝이 맞아야 한다.)
   const canEditStats = (target: RosterMember) =>
-    viewerRole === "owner" || (viewerRole === "manager" && target.role === "member");
-  // 매니저 지정/해제는 owner·manager 모두 가능하지만(감독 행은 대상에서 제외).
-  const canManageRole = (target: RosterMember) => target.role !== "owner" && canEditStats(target);
-  // 제명은 감독(owner)만 가능하다 — 매니저는 더 이상 못 한다(DB team_members_delete_self_or_owner
-  // 정책과 짝이 맞아야 한다). 감독 행은 애초에 제명 대상이 아니다.
-  const canKick = (target: RosterMember) => target.role !== "owner" && viewerRole === "owner";
+    isViewerOwnerOrAdmin || (viewerRole === "manager" && target.role === "member");
+  // 역할 변경(부주장 ↔ 팀원)은 감독·관리자만 할 수 있다 — 부주장은 더 이상 못 한다
+  // (예전엔 부주장도 일반 팀원을 부주장으로 지정할 수 있었으나, 정책 변경으로 제외했다).
+  const canManageRole = (target: RosterMember) => target.role !== "owner" && isViewerOwnerOrAdmin;
+  // 제명은 감독·관리자만 가능하다(DB team_members_delete_self_or_owner 정책과 짝이 맞아야 한다).
+  // 감독 행은 애초에 제명 대상이 아니다.
+  const canKick = (target: RosterMember) => target.role !== "owner" && isViewerOwnerOrAdmin;
 
   const updateFields = async (memberId: string, patch: Record<string, unknown>) => {
     setLoadingId(memberId);
@@ -91,8 +100,9 @@ export default function RosterTable({
     router.refresh();
   };
 
-  const toggleManager = async (member: RosterMember) => {
-    await updateFields(member.id, { role: member.role === "manager" ? "member" : "manager" });
+  const changeRole = async (member: RosterMember, nextRole: "manager" | "member") => {
+    if (nextRole === member.role) return;
+    await updateFields(member.id, { role: nextRole });
   };
 
   const kick = async (member: RosterMember) => {
@@ -259,15 +269,20 @@ export default function RosterTable({
             </div>
 
             {(canManageRole(openMember) || canKick(openMember)) && (
-              <div className="flex gap-2 border-t border-black/[.06] pt-3 dark:border-white/[.08]">
+              <div className="flex flex-col gap-2 border-t border-black/[.06] pt-3 dark:border-white/[.08]">
                 {canManageRole(openMember) && (
-                  <button
-                    onClick={() => toggleManager(openMember)}
-                    disabled={loadingId === openMember.id}
-                    className="flex-1 rounded border border-black/[.15] px-3 py-1.5 text-xs disabled:opacity-50 dark:border-white/[.2]"
-                  >
-                    {openMember.role === "manager" ? "매니저 해제" : "매니저 지정"}
-                  </button>
+                  <label className="flex flex-col gap-1 text-xs">
+                    <span className="text-zinc-500">역할</span>
+                    <select
+                      value={openMember.role}
+                      onChange={(e) => changeRole(openMember, e.target.value as "manager" | "member")}
+                      disabled={loadingId === openMember.id}
+                      className="rounded border border-black/[.15] px-3 py-2 text-sm disabled:opacity-50 dark:border-white/[.2]"
+                    >
+                      <option value="manager">부주장</option>
+                      <option value="member">팀원</option>
+                    </select>
+                  </label>
                 )}
                 {canKick(openMember) && (
                   <button
@@ -276,7 +291,7 @@ export default function RosterTable({
                       setOpenMemberId(null);
                     }}
                     disabled={loadingId === openMember.id}
-                    className="flex-1 rounded border border-red-300 px-3 py-1.5 text-xs text-red-600 disabled:opacity-50 dark:border-red-900"
+                    className="rounded border border-red-300 px-3 py-1.5 text-xs text-red-600 disabled:opacity-50 dark:border-red-900"
                   >
                     제명
                   </button>
@@ -337,18 +352,19 @@ export default function RosterTable({
                   </td>
                   <td className="px-3 py-2.5">{m.mom}</td>
                   <td className="px-3 py-2.5">
-                    <div className="flex flex-col items-start gap-1">
+                    {roleEditable ? (
+                      <select
+                        value={m.role}
+                        onChange={(e) => changeRole(m, e.target.value as "manager" | "member")}
+                        disabled={busy}
+                        className="rounded border border-black/[.15] px-2 py-1 text-sm disabled:opacity-50 dark:border-white/[.2]"
+                      >
+                        <option value="manager">부주장</option>
+                        <option value="member">팀원</option>
+                      </select>
+                    ) : (
                       <span>{roleLabel(m)}</span>
-                      {roleEditable && (
-                        <button
-                          onClick={() => toggleManager(m)}
-                          disabled={busy}
-                          className="text-xs text-zinc-500 underline disabled:opacity-50"
-                        >
-                          {m.role === "manager" ? "매니저 해제" : "매니저 지정"}
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </td>
                   <td className="px-3 py-2.5">
                     {canKick(m) && (
