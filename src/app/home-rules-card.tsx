@@ -22,21 +22,21 @@ export default function HomeRulesCard({ policies }: { policies: TeamPolicy[] }) 
 
   return (
     <>
-      <section className="surface-card overflow-hidden">
+      <section className="mx-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-black/[.08] bg-white shadow-sm dark:border-white/[.1] dark:bg-white/[.03]">
         <button
           type="button"
           onClick={() => policies.length > 0 && setOpen(true)}
-          className="group w-full p-4 text-left sm:p-5"
+          className="group w-full p-5 text-left"
           aria-haspopup="dialog"
           disabled={policies.length === 0}
         >
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-sm">📜</span>
-              <h2 className="surface-card-title">우리 팀 회칙</h2>
+              <span aria-hidden className="text-base">📜</span>
+              <h2 className="text-sm font-semibold">우리 팀 회칙</h2>
             </div>
             {policies.length > 0 && (
-              <span className="text-xs font-semibold text-blue-600 transition-colors group-hover:text-blue-700">
+              <span className="text-xs font-medium text-zinc-500 transition-colors group-hover:text-foreground">
                 전체 보기 →
               </span>
             )}
@@ -48,8 +48,8 @@ export default function HomeRulesCard({ policies }: { policies: TeamPolicy[] }) 
             <div className="space-y-2.5">
               {policies.slice(0, 1).map((policy) => (
                 <article key={policy.id}>
-                  <h3 className="text-sm font-semibold text-slate-800">{policy.title || "회칙"}</h3>
-                  <p className="mt-1 line-clamp-2 whitespace-pre-line text-sm leading-6 text-slate-500">
+                  <h3 className="text-sm font-semibold">{policy.title || "회칙"}</h3>
+                  <p className="mt-1 line-clamp-2 whitespace-pre-line text-sm leading-6 text-zinc-600 dark:text-zinc-300">
                     {policy.content}
                   </p>
                 </article>

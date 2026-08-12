@@ -34,12 +34,11 @@ export default async function Home() {
   const latestMom = await getLatestMatchMom(team.id, pastMatches[0] ?? null);
 
   return (
-    <main className="app-page flex flex-1 flex-col gap-4 px-3 py-4 sm:gap-5 sm:px-6 sm:py-8">
-      <div className="px-1 sm:px-0">
-        <p className="mb-1 text-[11px] font-bold uppercase tracking-[.18em] text-blue-600">Team dashboard</p>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{team.name}</h1>
+    <main className="flex flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
+      <div>
+        <h1 className="text-2xl font-semibold">{team.name}</h1>
         {team.region && (
-          <p className="mt-0.5 text-sm text-slate-500">{team.region}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{team.region}</p>
         )}
       </div>
 

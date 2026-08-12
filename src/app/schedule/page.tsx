@@ -18,11 +18,10 @@ export default async function SchedulePage() {
   const canManage = role === "owner" || role === "manager";
 
   return (
-    <main className="app-page flex flex-1 flex-col gap-5 px-3 py-4 sm:px-6 sm:py-8">
+    <main className="flex flex-1 flex-col gap-5 px-6 py-10">
       <div>
-        <p className="mb-1 text-[11px] font-bold uppercase tracking-[.18em] text-blue-600">Schedule</p>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">경기일정</h1>
-        <p className="text-sm text-slate-500">{team.name}</p>
+        <h1 className="text-xl font-semibold">경기일정</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{team.name}</p>
       </div>
 
       <ScheduleView

@@ -41,8 +41,8 @@ export default function UpcomingRsvpCard({
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0];
 
   return (
-    <div className="surface-card p-4 sm:p-5">
-      <h2 className="surface-card-title mb-3">다가오는 일정 · 참석 투표</h2>
+    <div className="mx-auto w-full max-w-4xl rounded-2xl border border-black/[.08] bg-white p-5 shadow-sm dark:border-white/[.1] dark:bg-white/[.03]">
+      <h2 className="mb-3 text-sm font-semibold text-zinc-500">다가오는 일정 · 참석 투표</h2>
       {!upcoming ? (
         <p className="text-sm text-zinc-500">예정된 일정이 없어요.</p>
       ) : (

@@ -34,8 +34,8 @@ export default function PastMatchesCard({
   const [selected, setSelected] = useState<TeamEvent | null>(null);
 
   return (
-    <div className="surface-card p-4 sm:p-5">
-      <h2 className="surface-card-title mb-3">지난 경기 결과</h2>
+    <div className="mx-auto w-full max-w-4xl rounded-2xl border border-black/[.08] bg-white p-5 shadow-sm dark:border-white/[.1] dark:bg-white/[.03]">
+      <h2 className="mb-3 text-sm font-semibold text-zinc-500">지난 경기 결과</h2>
       {matches.length === 0 ? (
         <p className="text-sm text-zinc-500">지난 경기가 없어요.</p>
       ) : (

@@ -73,22 +73,22 @@ export default function Calendar({
   const goToNextMonth = () => setViewDate(new Date(year, month + 1, 1));
 
   return (
-    <div className="surface-card overflow-hidden p-3 sm:p-5">
-      <div className="mb-3 flex items-center justify-between sm:mb-5">
+    <div className="mx-auto w-full max-w-4xl rounded-2xl border border-black/[.08] bg-white p-6 shadow-sm dark:border-white/[.1] dark:bg-white/[.03]">
+      <div className="mb-5 flex items-center justify-between">
         <button
           onClick={goToPrevMonth}
           aria-label="이전 달"
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-lg text-zinc-500 transition-colors hover:bg-black/[.06] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.1]"
         >
           ‹
         </button>
-        <h2 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+        <h2 className="text-lg font-semibold tracking-tight">
           {year}년 {month + 1}월
         </h2>
         <button
           onClick={goToNextMonth}
           aria-label="다음 달"
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-lg text-zinc-500 transition-colors hover:bg-black/[.06] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.1]"
         >
           ›
         </button>
@@ -117,7 +117,7 @@ export default function Calendar({
             return (
               <div
                 key={`empty-${i}`}
-                className="min-h-20 border-b border-r border-slate-100 sm:min-h-28"
+                className="min-h-32 border-b border-r border-black/[.05] dark:border-white/[.06]"
               />
             );
           }
@@ -129,15 +129,15 @@ export default function Calendar({
           return (
             <div
               key={day}
-              className={`group flex min-h-20 flex-col gap-1 border-b border-r border-slate-100 p-1 transition-colors hover:bg-slate-50 sm:min-h-28 sm:p-2 ${
-                isToday ? "bg-blue-50/60" : ""
+              className={`group flex min-h-32 flex-col gap-1 border-b border-r border-black/[.05] p-1 sm:p-2 transition-colors hover:bg-black/[.02] dark:border-white/[.06] dark:hover:bg-white/[.04] ${
+                isToday ? "bg-foreground/[.04] dark:bg-white/[.06]" : ""
               }`}
             >
               <div className="flex items-center justify-between">
                 <span
                   className={`flex h-6 w-6 items-center justify-center rounded-full text-sm ${
                     isToday
-                      ? "bg-blue-600 font-semibold text-white shadow-sm"
+                      ? "bg-foreground font-semibold text-background"
                       : weekday === 0
                         ? "text-red-500/90"
                         : weekday === 6
@@ -163,7 +163,7 @@ export default function Calendar({
                   <button
                     key={event.id}
                     onClick={() => setModal({ date: cellDate, event })}
-                    className="relative flex min-w-0 flex-col rounded-md border border-slate-200 bg-slate-50 px-1 py-1 text-left leading-tight text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 sm:px-1.5"
+                    className="relative flex min-w-0 flex-col rounded bg-foreground/[.08] px-1 py-1 text-left leading-tight text-foreground hover:bg-foreground/[.15] sm:px-1.5 dark:bg-white/[.1] dark:hover:bg-white/[.18]"
                   >
                     <span className="truncate pl-2 text-[9px] text-zinc-500 sm:text-[10px]">
                       {formatTime(event.starts_at)} ~ {formatTime(event.ends_at)}

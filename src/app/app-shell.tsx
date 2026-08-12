@@ -177,7 +177,7 @@ export default function AppShell({
         // 열고 닫을 때 옆의 콘텐츠 영역이 margin 트릭 없이 자연스럽게 밀리고 채워진다.
         // overflow-hidden + 안쪽 w-56 래퍼로 폭이 줄어드는 동안 글자가 줄바꿈되지 않고 잘려 보이게 한다.
         <aside
-          className={`shrink-0 overflow-hidden border-r border-slate-200 bg-slate-950 pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] text-white transition-[width] duration-300 ease-in-out ${
+          className={`shrink-0 overflow-hidden border-r border-black/[.08] bg-white pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] transition-[width] duration-300 ease-in-out dark:border-white/[.1] dark:bg-zinc-950 ${
             sidebarOpen ? SIDEBAR_WIDTH : "w-0"
           }`}
         >
@@ -186,7 +186,7 @@ export default function AppShell({
             <nav className="flex flex-col gap-4 px-3 py-3">
               {NAV_SECTIONS.map((section) => (
                 <div key={section.title} className="flex flex-col gap-0.5">
-                  <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[.16em] text-slate-500">
+                  <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                     {section.title}
                   </p>
                   {section.items.map((item) => {
@@ -198,8 +198,8 @@ export default function AppShell({
                         aria-current={active ? "page" : undefined}
                         className={`flex items-center rounded-lg px-3 py-2 text-sm transition-colors ${
                           active
-                            ? "bg-blue-600 font-semibold text-white shadow-sm shadow-blue-950/20"
-                            : "text-slate-300 hover:bg-white/[.07] hover:text-white"
+                            ? "bg-black/[.06] font-medium text-foreground dark:bg-white/[.1]"
+                            : "text-zinc-600 hover:bg-black/[.05] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.08]"
                         }`}
                       >
                         <span>{item.label}</span>
@@ -215,12 +215,12 @@ export default function AppShell({
       )}
 
       <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex min-h-14 items-center gap-3 border-b border-slate-200/80 bg-white/90 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl sm:px-5">
+        <header className="flex min-h-14 items-center gap-3 border-b border-black/[.08] px-4 pt-[env(safe-area-inset-top)] dark:border-white/[.1]">
           {showSidebar && (
             <button
               onClick={() => setSidebarOpen((v) => !v)}
               aria-label={sidebarOpen ? "메뉴 닫기" : "메뉴 열기"}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-black/[.06] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.1]"
             >
               <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
                 <path
@@ -234,7 +234,7 @@ export default function AppShell({
           )}
 
           {(!showSidebar || !sidebarOpen) && (
-            <Link href="/" className="font-bold tracking-tight text-slate-900">
+            <Link href="/" className="font-semibold tracking-tight">
               Team Manager
             </Link>
           )}
@@ -258,7 +258,7 @@ export default function AppShell({
 
       {showSidebar && (
         <nav
-          className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,.06)] backdrop-blur-xl sm:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 flex border-t border-black/[.08] bg-white pb-[env(safe-area-inset-bottom)] sm:hidden dark:border-white/[.1] dark:bg-zinc-950"
           aria-label="빠른 이동"
         >
           {BOTTOM_NAV_ITEMS.map((item) => {
@@ -268,10 +268,10 @@ export default function AppShell({
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] transition-colors ${
+                className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] transition-colors ${
                   active
-                    ? "font-semibold text-blue-600"
-                    : "text-slate-400"
+                    ? "text-foreground"
+                    : "text-zinc-500 dark:text-zinc-400"
                 }`}
               >
                 {item.icon(active)}

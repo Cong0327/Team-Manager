@@ -32,12 +32,12 @@ export default function AccountMenu({ email, name }: { email: string; name: stri
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-transparent py-1 pl-1 pr-2.5 text-sm transition-colors hover:border-slate-200 hover:bg-slate-50"
+        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 text-sm transition-colors hover:bg-black/[.05] dark:hover:bg-white/[.08]"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-sm">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">
           {displayName.charAt(0).toUpperCase()}
         </span>
-        <span className="hidden max-w-[140px] truncate text-slate-700 sm:inline">
+        <span className="hidden max-w-[140px] truncate text-zinc-700 sm:inline dark:text-zinc-300">
           {displayName}
         </span>
         <svg
@@ -52,7 +52,7 @@ export default function AccountMenu({ email, name }: { email: string; name: stri
       </button>
 
       <div
-        className={`absolute right-0 z-50 mt-2 w-44 origin-top-right rounded-xl border border-slate-200 bg-white p-1 shadow-xl shadow-slate-900/10 transition-all duration-150 ${
+        className={`absolute right-0 z-50 mt-2 w-44 origin-top-right rounded-xl border border-black/[.08] bg-white p-1 shadow-lg transition-all duration-150 dark:border-white/[.1] dark:bg-zinc-900 ${
           open
             ? "scale-100 opacity-100"
             : "pointer-events-none scale-95 opacity-0"
