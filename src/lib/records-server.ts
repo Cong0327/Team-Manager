@@ -1,11 +1,14 @@
-import { getTeamEvents, splitMatches } from "@/lib/events";
+import { getTeamEvents, splitMatches, type TeamEvent } from "@/lib/events";
 import { createClient } from "@/lib/supabase/server";
 import { getTeamRoster } from "@/lib/teams";
+import { isWithinSeason, type Season } from "@/lib/seasons";
 import {
+  getMatchResult,
   isMomVoteOpen,
   type EventMomVoteRow,
   type EventPlayerStatRow,
   type TeamMatchRecord,
+  type TeamSeasonSummary,
 } from "@/lib/records";
 
 type ParticipantRow = {
@@ -15,10 +18,18 @@ type ParticipantRow = {
 };
 
 // 경기 기록 화면은 여러 테이블을 한 카드 단위로 합쳐야 하므로 서버에서 한 번에 조립해 클라이언트 변경 로직을 단순하게 둔다.
-export async function getTeamMatchRecords(teamId: string, currentUserId: string): Promise<TeamMatchRecord[]> {
+// seasonRange를 주면 그 시즌 기간(KST 달력 날짜 기준, 경계 포함)의 경기만 골라 돌려준다.
+export async function getTeamMatchRecords(
+  teamId: string,
+  currentUserId: string,
+  seasonRange?: Pick<Season, "start_date" | "end_date">
+): Promise<TeamMatchRecord[]> {
   const supabase = await createClient();
   const [events, roster] = await Promise.all([getTeamEvents(teamId), getTeamRoster(teamId)]);
-  const { pastMatches } = splitMatches(events);
+  const { pastMatches: allPastMatches } = splitMatches(events);
+  const pastMatches = seasonRange
+    ? allPastMatches.filter((match) => isWithinSeason(match.starts_at, seasonRange))
+    : allPastMatches;
 
   if (pastMatches.length === 0) return [];
 
@@ -88,6 +99,64 @@ export async function getTeamMatchRecords(teamId: string, currentUserId: string)
       voteOpen,
     };
   });
+}
+
+// 팀 기록 페이지의 "팀 시즌 기간 기록" 요약(승/무/패/골/도움 + 항목별 근거 목록)을 계산한다.
+// 승/무/패는 넘겨받은 matches(이미 시즌으로 걸러진 경기 목록)에서 스코어만으로 판정하고,
+// 골/도움은 그 경기들의 event_player_stats를 모아서 낸다.
+export async function getTeamSeasonSummary(teamId: string, matches: TeamEvent[]): Promise<TeamSeasonSummary> {
+  const wins: TeamSeasonSummary["wins"] = [];
+  const draws: TeamSeasonSummary["draws"] = [];
+  const losses: TeamSeasonSummary["losses"] = [];
+
+  for (const match of matches) {
+    const result = getMatchResult(match);
+    if (!result || match.our_score === null || match.opponent_score === null) continue;
+    const item = {
+      matchId: match.id,
+      opponentName: match.opponent_name ?? "상대 미입력",
+      ourScore: match.our_score,
+      opponentScore: match.opponent_score,
+    };
+    if (result === "승") wins.push(item);
+    else if (result === "무") draws.push(item);
+    else losses.push(item);
+  }
+
+  const matchIds = matches.map((match) => match.id);
+  if (matchIds.length === 0) {
+    return { wins, draws, losses, goalEntries: [], assistEntries: [], totalGoals: 0, totalAssists: 0 };
+  }
+
+  const supabase = await createClient();
+  const [roster, { data: stats }] = await Promise.all([
+    getTeamRoster(teamId),
+    supabase.from("event_player_stats").select("event_id, user_id, goals, assists").in("event_id", matchIds),
+  ]);
+
+  const nameByUserId = new Map(
+    roster.map((member) => [member.user_id, member.profile?.name || member.profile?.email || "이름 없음"])
+  );
+  const opponentByEventId = new Map(matches.map((match) => [match.id, match.opponent_name ?? "상대 미입력"]));
+
+  const goalEntries: TeamSeasonSummary["goalEntries"] = [];
+  const assistEntries: TeamSeasonSummary["assistEntries"] = [];
+  let totalGoals = 0;
+  let totalAssists = 0;
+
+  for (const row of (stats ?? []) as EventPlayerStatRow[]) {
+    totalGoals += row.goals;
+    totalAssists += row.assists;
+    const entry = {
+      matchId: row.event_id,
+      opponentName: opponentByEventId.get(row.event_id) ?? "상대 미입력",
+      playerName: nameByUserId.get(row.user_id) ?? "이름 없음",
+    };
+    if (row.goals > 0) goalEntries.push({ ...entry, count: row.goals });
+    if (row.assists > 0) assistEntries.push({ ...entry, count: row.assists });
+  }
+
+  return { wins, draws, losses, goalEntries, assistEntries, totalGoals, totalAssists };
 }
 
 // 경기 기록 상세 페이지(/my-records/[eventId])용: 전체 목록에서 해당 경기 하나만 골라낸다.

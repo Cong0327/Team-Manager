@@ -25,7 +25,8 @@ const NAV_SECTIONS: { title: string; items: { href: string; label: string }[] }[
   {
     title: "기록 및 게시판",
     items: [
-      { href: "/my-records", label: "기록" },
+      { href: "/team-records", label: "팀 기록" },
+      { href: "/my-records", label: "개인 기록" },
       { href: "/board", label: "게시판/사진첩" },
     ],
   },
@@ -75,7 +76,7 @@ const BOTTOM_NAV_ITEMS: { href: string; label: string; icon: (active: boolean) =
   },
   {
     href: "/my-records",
-    label: "기록",
+    label: "개인기록",
     icon: (active) => (
       <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
         <path

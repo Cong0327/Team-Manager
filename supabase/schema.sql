@@ -1448,6 +1448,156 @@ drop policy if exists "kakao_links_delete_self" on kakao_links;
 create policy "kakao_links_delete_self" on kakao_links
   for delete to authenticated using (user_id = auth.uid());
 
+-- =====================================================================
+-- 시즌별 기록
+-- 감독/매니저가 이름 붙인 기간(시즌)을 만들어두면, 경기 기록 화면에서 그 기간의
+-- 경기만 골라 골/어시스트/MOM 누적 리더보드를 보여준다. primary key는 인라인으로만
+-- 선언한다(do $$ 블록으로 따로 추가하면 재실행 시 "multiple primary keys"(42P16) 에러 — 실제로 겪은 버그).
+-- =====================================================================
+create table if not exists team_seasons (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null,
+  name text not null,
+  start_date date not null,
+  end_date date not null,
+  is_current boolean not null default false,
+  created_by uuid not null,
+  created_at timestamptz not null default now()
+);
+
+alter table team_seasons add column if not exists team_id uuid not null;
+alter table team_seasons add column if not exists name text not null;
+alter table team_seasons add column if not exists start_date date not null;
+alter table team_seasons add column if not exists end_date date not null;
+alter table team_seasons add column if not exists is_current boolean not null default false;
+alter table team_seasons add column if not exists created_by uuid not null;
+alter table team_seasons add column if not exists created_at timestamptz not null default now();
+
+-- 팀당 "현재 시즌"은 하나뿐이어야 다른 화면(명단관리/마이페이지)의 골·어시스트 표시가
+-- 어떤 시즌 기준인지 헷갈리지 않는다. is_current=true인 행만 대상으로 하는 부분 유니크 인덱스로 강제한다.
+create unique index if not exists team_seasons_one_current_per_team
+  on team_seasons (team_id)
+  where is_current;
+
+do $$ begin
+  alter table team_seasons
+    add constraint team_seasons_team_id_fkey
+    foreign key (team_id) references teams(id) on delete cascade;
+exception
+  when duplicate_object or duplicate_table then null;
+end $$;
+
+do $$ begin
+  alter table team_seasons
+    add constraint team_seasons_created_by_fkey
+    foreign key (created_by) references auth.users(id) on delete cascade;
+exception
+  when duplicate_object or duplicate_table then null;
+end $$;
+
+do $$ begin
+  alter table team_seasons
+    add constraint team_seasons_end_after_start check (end_date >= start_date);
+exception
+  when duplicate_object or duplicate_table then null;
+end $$;
+
+create index if not exists team_seasons_team_id_idx on team_seasons (team_id);
+
+alter table team_seasons enable row level security;
+
+-- 조회: 시즌 선택지는 팀 승인 멤버 전원이 봐야 필터를 쓸 수 있다.
+drop policy if exists "team_seasons_select_team_members" on team_seasons;
+create policy "team_seasons_select_team_members" on team_seasons
+  for select to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_seasons.team_id and tm.user_id = auth.uid() and tm.status = 'approved'
+    )
+  );
+
+-- 생성/삭제: 시즌 기간 지정은 감독/매니저 운영 작업이다.
+-- created_by = auth.uid()도 함께 강제해 다른 사람 명의로 만든 것처럼 조작하지 못하게 한다.
+drop policy if exists "team_seasons_insert_owner_manager" on team_seasons;
+create policy "team_seasons_insert_owner_manager" on team_seasons
+  for insert to authenticated with check (
+    created_by = auth.uid()
+    and exists (
+      select 1 from team_members tm
+      where tm.team_id = team_seasons.team_id and tm.user_id = auth.uid()
+        and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  );
+
+drop policy if exists "team_seasons_delete_owner_manager" on team_seasons;
+create policy "team_seasons_delete_owner_manager" on team_seasons
+  for delete to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_seasons.team_id and tm.user_id = auth.uid()
+        and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  );
+
+-- 수정: "현재 시즌으로 지정" 토글에 쓴다.
+drop policy if exists "team_seasons_update_owner_manager" on team_seasons;
+create policy "team_seasons_update_owner_manager" on team_seasons
+  for update to authenticated using (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_seasons.team_id and tm.user_id = auth.uid()
+        and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  ) with check (
+    exists (
+      select 1 from team_members tm
+      where tm.team_id = team_seasons.team_id and tm.user_id = auth.uid()
+        and tm.status = 'approved' and tm.role in ('owner', 'manager')
+    )
+  );
+
+-- team_id 변경 자체를 막는다: 위 update 정책의 with check는 "새 team_id의 owner/manager인가"만
+-- 보므로, 두 팀 모두에서 owner/manager인 사람이 시즌을 다른 팀으로 옮길 수 있는 구멍이 있었다
+-- (RLS는 행 단위만 제어해서 컬럼별로는 못 막음 — team_members의 enforce_team_member_update와 같은 이유).
+create or replace function public.prevent_team_seasons_team_id_change()
+returns trigger as $$
+begin
+  if new.team_id is distinct from old.team_id then
+    raise exception '시즌의 소속 팀은 변경할 수 없습니다.';
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_team_seasons_update on team_seasons;
+create trigger on_team_seasons_update
+  before update on team_seasons
+  for each row execute procedure public.prevent_team_seasons_team_id_change();
+
+-- 같은 팀 안에서 시즌 기간(경계 포함)이 겹치는 걸 막는다. 화면(season-picker.tsx)에서도
+-- 저장 전에 겹침을 걸러주지만, 그건 클라이언트가 그 순간 알고 있는 시즌 목록 기준일 뿐이라
+-- 동시 수정/직접 API 호출까지 막으려면 여기(DB)가 최종 방어선이어야 한다.
+create or replace function public.prevent_team_seasons_overlap()
+returns trigger as $$
+begin
+  if exists (
+    select 1 from team_seasons
+    where team_id = new.team_id
+      and id <> new.id
+      and start_date <= new.end_date
+      and end_date >= new.start_date
+  ) then
+    raise exception '다른 시즌과 기간이 겹칩니다.';
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_team_seasons_no_overlap on team_seasons;
+create trigger on_team_seasons_no_overlap
+  before insert or update on team_seasons
+  for each row execute procedure public.prevent_team_seasons_overlap();
+
 -- 위쪽 notify는 team_policy 블록이 추가되기 전 위치라 team_policy까지는 못 덮는다.
 -- 파일 실행이 끝나는 진짜 마지막 지점에서 한 번 더 캐시를 갱신한다.
 notify pgrst, 'reload schema';
