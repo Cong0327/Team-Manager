@@ -10,17 +10,23 @@ export type PlayerGoalAssistStats = {
 };
 
 export type TeamGoalAssistStats = {
+  // 화면에서 실제로 선택된(또는 아무것도 안 골라 "전체 기간"인) 시즌. is_current와는 별개다 —
+  // 예전엔 항상 팀의 현재 시즌만 썼지만, 명단관리에도 시즌 셀렉트가 생기면서 호출하는 쪽이
+  // 어떤 시즌 기준으로 볼지 직접 정한다.
   currentSeason: Season | null;
   byUserId: Map<string, PlayerGoalAssistStats>;
 };
 
-// 명단관리·마이페이지 등 여러 화면에서 "골/어시스트"를 시즌 기준으로 보여줘야 해서,
-// 경기별 기록(event_player_stats)을 팀 단위로 한 번에 모아 시즌합/전체합을 계산하는 공용 함수로 뺐다.
+// 명단관리 등에서 "골/어시스트"를 시즌 기준으로 보여줘야 해서, 경기별 기록(event_player_stats)을
+// 팀 단위로 한 번에 모아 선택된 시즌 합/전체 합을 계산하는 공용 함수로 뺐다.
 // event_player_stats에는 team_id가 없어 events를 거쳐 팀 소속 경기 id를 먼저 구한다.
-export async function getTeamGoalAssistStats(teamId: string): Promise<TeamGoalAssistStats> {
+// selectedSeason이 null이면 "전체 기간"으로 seasonGoals/seasonAssists는 항상 0이 된다
+// (그 경우 호출하는 쪽에서 totalGoals/totalAssists를 주로 보여주면 된다).
+export async function getTeamGoalAssistStats(
+  teamId: string,
+  selectedSeason: Season | null
+): Promise<TeamGoalAssistStats> {
   const supabase = await createClient();
-  const seasons = await getTeamSeasons(teamId);
-  const currentSeason = seasons.find((season) => season.is_current) ?? null;
 
   const { data: events } = await supabase
     .from("events")
@@ -32,7 +38,7 @@ export async function getTeamGoalAssistStats(teamId: string): Promise<TeamGoalAs
   const eventIds = [...startsAtByEventId.keys()];
 
   const byUserId = new Map<string, PlayerGoalAssistStats>();
-  if (eventIds.length === 0) return { currentSeason, byUserId };
+  if (eventIds.length === 0) return { currentSeason: selectedSeason, byUserId };
 
   const { data: stats } = await supabase
     .from("event_player_stats")
@@ -50,7 +56,7 @@ export async function getTeamGoalAssistStats(teamId: string): Promise<TeamGoalAs
     current.totalAssists += row.assists;
 
     const startsAt = startsAtByEventId.get(row.event_id);
-    if (currentSeason && startsAt && isWithinSeason(startsAt, currentSeason)) {
+    if (selectedSeason && startsAt && isWithinSeason(startsAt, selectedSeason)) {
       current.seasonGoals += row.goals;
       current.seasonAssists += row.assists;
     }
@@ -58,7 +64,7 @@ export async function getTeamGoalAssistStats(teamId: string): Promise<TeamGoalAs
     byUserId.set(row.user_id, current);
   }
 
-  return { currentSeason, byUserId };
+  return { currentSeason: selectedSeason, byUserId };
 }
 
 const emptyStats: PlayerGoalAssistStats = { seasonGoals: 0, seasonAssists: 0, totalGoals: 0, totalAssists: 0 };
