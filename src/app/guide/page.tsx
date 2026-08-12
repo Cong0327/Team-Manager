@@ -99,7 +99,7 @@ export default async function GuidePage() {
     },
     {
       title: "등번호",
-      description: "활성 팀마다 다른 등번호를 설정할 수 있어요.",
+      description: "본인의 등번호를 설정할 수 있어요.",
       href: membership ? "/account#player-info" : "/team",
       action: membership ? "등번호 설정" : "팀 확인",
       complete: entry?.jersey_number != null,
@@ -112,7 +112,7 @@ export default async function GuidePage() {
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Getting started</p>
         <h1 className="mt-1 text-2xl font-semibold">사용법</h1>
-        <p className="mt-1 text-sm text-zinc-500">설명만 읽지 말고 필요한 기능으로 바로 이동해 보세요.</p>
+        <p className="mt-1 text-sm text-zinc-500">필요한 기능으로 바로 이동해 보세요.</p>
       </div>
 
       <section className="rounded-2xl border border-black/[.08] bg-foreground/[.025] p-4 sm:p-5 dark:border-white/[.1] dark:bg-white/[.03]">
