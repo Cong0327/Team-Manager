@@ -22,21 +22,21 @@ export default function HomeRulesCard({ policies }: { policies: TeamPolicy[] }) 
 
   return (
     <>
-      <section className="overflow-hidden rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-sm dark:border-amber-900/50 dark:from-amber-950/30 dark:via-zinc-950 dark:to-orange-950/20">
+      <section className="mx-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-black/[.08] bg-white shadow-sm dark:border-white/[.1] dark:bg-white/[.03]">
         <button
           type="button"
           onClick={() => policies.length > 0 && setOpen(true)}
-          className="w-full p-5 text-left sm:p-6"
+          className="group w-full p-5 text-left"
           aria-haspopup="dialog"
           disabled={policies.length === 0}
         >
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span aria-hidden className="text-xl">📜</span>
-              <h2 className="font-semibold">우리 팀 회칙</h2>
+              <span aria-hidden className="text-base">📜</span>
+              <h2 className="text-sm font-semibold">우리 팀 회칙</h2>
             </div>
             {policies.length > 0 && (
-              <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+              <span className="text-xs font-medium text-zinc-500 transition-colors group-hover:text-foreground">
                 전체 보기 →
               </span>
             )}
@@ -45,17 +45,17 @@ export default function HomeRulesCard({ policies }: { policies: TeamPolicy[] }) 
           {policies.length === 0 ? (
             <p className="text-sm text-zinc-500">아직 등록된 회칙이 없습니다. 회칙 메뉴에서 등록할 수 있어요.</p>
           ) : (
-            <div className="space-y-3">
-              {policies.slice(0, 2).map((policy) => (
+            <div className="space-y-2.5">
+              {policies.slice(0, 1).map((policy) => (
                 <article key={policy.id}>
                   <h3 className="text-sm font-semibold">{policy.title || "회칙"}</h3>
-                  <p className="mt-1 max-h-12 overflow-hidden whitespace-pre-line text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                  <p className="mt-1 line-clamp-2 whitespace-pre-line text-sm leading-6 text-zinc-600 dark:text-zinc-300">
                     {policy.content}
                   </p>
                 </article>
               ))}
-              {policies.length > 2 && (
-                <p className="text-xs text-zinc-400">외 {policies.length - 2}개 회칙</p>
+              {policies.length > 1 && (
+                <p className="text-xs text-zinc-400">외 {policies.length - 1}개 회칙</p>
               )}
             </div>
           )}
