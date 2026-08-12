@@ -38,7 +38,7 @@ export const viewport: Viewport = {
   // 안 맞춰져서 화면이 확대/축소된 채로 렌더되고, 보이는 위치와 실제 터치 좌표가 어긋난다.
   width: "device-width",
   initialScale: 1,
-  themeColor: "#ffffff",
+  themeColor: "#f5f7fb",
   viewportFit: "cover",
 };
 

@@ -58,16 +58,16 @@ export default function PwaInstallGuide() {
   };
 
   return (
-    <section id="pwa-install" className="pwa-install-guide scroll-mt-20 mx-auto w-full max-w-4xl rounded-2xl border border-blue-200/70 bg-blue-50/60 p-4 shadow-sm sm:hidden dark:border-blue-900/50 dark:bg-blue-950/20">
+    <section id="pwa-install" className="pwa-install-guide surface-card scroll-mt-20 border-blue-100 bg-gradient-to-br from-white to-blue-50/70 p-3.5 sm:hidden">
       <div className="flex items-start gap-3">
-        <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-lg text-white">＋</span>
+        <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-base font-light text-white shadow-sm shadow-blue-200">＋</span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <h2 className="text-sm font-semibold">앱처럼 사용하기</h2>
+              <h2 className="text-sm font-bold text-slate-900">앱처럼 사용하기</h2>
               <p className="mt-0.5 text-xs text-zinc-500">홈 화면에 추가하면 전체 화면으로 빠르게 열려요.</p>
             </div>
-            <div className="flex shrink-0 rounded-lg bg-white p-0.5 text-[11px] shadow-sm dark:bg-white/[.08]">
+            <div className="flex shrink-0 rounded-lg border border-slate-200 bg-white p-0.5 text-[11px]">
               {(Object.keys(GUIDES) as Platform[]).map((item) => (
                 <button
                   key={item}
@@ -104,7 +104,7 @@ export default function PwaInstallGuide() {
           )}
 
           <p className="mt-3 text-[11px] font-semibold text-blue-700 dark:text-blue-300">{variant.browser}에서 진행</p>
-          <ol className="mt-1.5 space-y-1 text-xs leading-5 text-zinc-600 dark:text-zinc-300">
+          <ol className="mt-1.5 space-y-0.5 text-[11px] leading-[1.15rem] text-slate-600">
             {variant.steps.map((step, index) => (
               <li key={step} className="flex gap-2">
                 <span className="font-semibold text-blue-600">{index + 1}</span>

@@ -57,8 +57,9 @@ export default function TeamSwitcher({
 
   if (teams.length === 1 && !isPlatformAdmin) {
     return (
-      <div className="flex h-14 items-center px-5">
-        <span className="truncate font-semibold tracking-tight">{activeTeam.name}</span>
+      <div className="flex h-16 items-center gap-2.5 px-5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-xs font-black text-white shadow-lg shadow-blue-950/30">TM</span>
+        <span className="truncate font-bold tracking-tight text-white">{activeTeam.name}</span>
       </div>
     );
   }
@@ -68,7 +69,7 @@ export default function TeamSwitcher({
       <button
         onClick={() => setOpen((v) => !v)}
         disabled={isPending}
-        className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-black/[.05] disabled:opacity-50 dark:hover:bg-white/[.08]"
+        className="flex w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-left text-white transition-colors hover:bg-white/[.08] disabled:opacity-50"
       >
         <span className="truncate font-semibold tracking-tight">{activeTeam.name}</span>
         <svg
@@ -83,7 +84,7 @@ export default function TeamSwitcher({
       </button>
 
       <div
-        className={`absolute left-3 right-3 z-50 mt-1 origin-top rounded-xl border border-black/[.08] bg-white p-1 shadow-lg transition-all duration-150 dark:border-white/[.1] dark:bg-zinc-900 ${
+        className={`absolute left-3 right-3 z-50 mt-1 origin-top rounded-xl border border-slate-700 bg-slate-900 p-1 shadow-xl transition-all duration-150 ${
           open ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0"
         }`}
       >
@@ -91,8 +92,8 @@ export default function TeamSwitcher({
           <button
             key={team.id}
             onClick={() => handleSelect(team.id)}
-            className={`block w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-black/[.05] dark:hover:bg-white/[.08] ${
-              team.id === activeTeam.id ? "font-semibold" : "text-zinc-600 dark:text-zinc-400"
+            className={`block w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-white/[.08] ${
+              team.id === activeTeam.id ? "font-semibold text-white" : "text-slate-400"
             }`}
           >
             {team.name}

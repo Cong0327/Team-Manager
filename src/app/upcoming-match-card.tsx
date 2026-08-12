@@ -14,9 +14,9 @@ export default function UpcomingMatchCard({ match }: { match: TeamEvent | null }
   return (
     <div
       id="upcoming-match"
-      className="mx-auto w-full max-w-4xl rounded-2xl border border-black/[.08] bg-white p-5 shadow-sm dark:border-white/[.1] dark:bg-white/[.03]"
+      className="surface-card p-4 sm:p-5"
     >
-      <h2 className="mb-3 text-sm font-semibold text-zinc-500">다가오는 경기</h2>
+      <h2 className="surface-card-title mb-3">다가오는 경기</h2>
       {match ? (
         <div>
           <p className="text-lg font-semibold">vs {match.opponent_name}</p>
