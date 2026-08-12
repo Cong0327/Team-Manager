@@ -23,7 +23,7 @@ function formatTime(iso: string) {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-// 다가오는 일정마다 참석 투표(참석/미정/불참)를 바로 할 수 있는 카드.
+// 가장 가까운 다가오는 일정 하나의 참석 투표(참석/미정/불참)를 바로 할 수 있는 카드.
 // 캘린더를 클릭하지 않고도 같은 화면에서 투표할 수 있게 대시보드/일정 화면에서 함께 쓴다.
 export default function UpcomingRsvpCard({
   events,
@@ -35,49 +35,40 @@ export default function UpcomingRsvpCard({
   // 렌더 중 Date.now()를 직접 부르면 react purity 규칙에 걸리므로 최초 1회만 고정한다.
   const [nowMs] = useState(() => Date.now());
 
-  // 아직 시작하지 않은 일정만, 가까운 순으로.
+  // 아직 시작하지 않은 일정 중 가장 가까운 하나만 표시한다.
   const upcoming = events
     .filter((e) => new Date(e.starts_at).getTime() >= nowMs)
-    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0];
 
   return (
     <div className="mx-auto w-full max-w-4xl rounded-2xl border border-black/[.08] bg-white p-5 shadow-sm dark:border-white/[.1] dark:bg-white/[.03]">
       <h2 className="mb-3 text-sm font-semibold text-zinc-500">다가오는 일정 · 참석 투표</h2>
-      {upcoming.length === 0 ? (
+      {!upcoming ? (
         <p className="text-sm text-zinc-500">예정된 일정이 없어요.</p>
       ) : (
-        <ul className="flex flex-col gap-4">
-          {upcoming.map((e) => (
-            <li
-              key={e.id}
-              className="flex flex-col gap-3 border-b border-black/[.06] pb-4 last:border-0 last:pb-0 dark:border-white/[.08]"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${TYPE_BADGE[e.event_type]}`}
-                >
-                  {TYPE_LABEL[e.event_type]}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {e.event_type === "match" ? `vs ${e.opponent_name}` : e.title}
-                </span>
-                <span className="shrink-0 text-xs text-zinc-500">
-                  {formatDay(e.starts_at)} {formatTime(e.starts_at)}
-                </span>
-              </div>
-              <RsvpButtons
-                eventId={e.id}
-                currentUserId={currentUserId}
-                initialStatus={e.my_status}
-                initialCounts={{
-                  attending: e.attending_count,
-                  declined: e.declined_count,
-                  undecided: e.undecided_count,
-                }}
-              />
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${TYPE_BADGE[upcoming.event_type]}`}>
+              {TYPE_LABEL[upcoming.event_type]}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              {upcoming.event_type === "match" ? `vs ${upcoming.opponent_name}` : upcoming.title}
+            </span>
+            <span className="shrink-0 text-xs text-zinc-500">
+              {formatDay(upcoming.starts_at)} {formatTime(upcoming.starts_at)}
+            </span>
+          </div>
+          <RsvpButtons
+            eventId={upcoming.id}
+            currentUserId={currentUserId}
+            initialStatus={upcoming.my_status}
+            initialCounts={{
+              attending: upcoming.attending_count,
+              declined: upcoming.declined_count,
+              undecided: upcoming.undecided_count,
+            }}
+          />
+        </div>
       )}
     </div>
   );
