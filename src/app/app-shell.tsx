@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import AccountMenu from "./account-menu";
 import TeamSwitcher, { type SwitcherTeam } from "./team-switcher";
@@ -37,6 +37,26 @@ const NAV_SECTIONS: { title: string; items: { href: string; label: string }[] }[
 ];
 
 const SIDEBAR_WIDTH = "w-56";
+
+// Link의 서버 네비게이션이 진행되는 동안 즉시 표시한다. 동적 페이지의 RSC 응답이
+// 늦어도 클릭이 접수됐다는 사실을 사용자가 바로 알 수 있다.
+function NavigationPendingIndicator({ compact = false }: { compact?: boolean }) {
+  const { pending } = useLinkStatus();
+
+  if (!pending) return null;
+
+  return (
+    <span
+      aria-label="페이지 이동 중"
+      role="status"
+      className={
+        compact
+          ? "absolute right-2 top-2 h-2.5 w-2.5 animate-spin rounded-full border border-current border-r-transparent"
+          : "ml-auto h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent"
+      }
+    />
+  );
+}
 
 // 모바일 전용 하단 탭바. 사이드바 전체 메뉴 중 자주 쓰는 5개만 추려서 바로 이동할 수 있게 한다
 // (전체 메뉴는 기존처럼 햄버거로 열리는 사이드바에 그대로 있음). sm 이상에서는 숨긴다.
@@ -173,13 +193,14 @@ export default function AppShell({
                         key={item.href}
                         href={item.href}
                         aria-current={active ? "page" : undefined}
-                        className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                        className={`flex items-center rounded-lg px-3 py-2 text-sm transition-colors ${
                           active
                             ? "bg-black/[.06] font-medium text-foreground dark:bg-white/[.1]"
                             : "text-zinc-600 hover:bg-black/[.05] hover:text-foreground dark:text-zinc-400 dark:hover:bg-white/[.08]"
                         }`}
                       >
-                        {item.label}
+                        <span>{item.label}</span>
+                        <NavigationPendingIndicator />
                       </Link>
                     );
                   })}
@@ -244,7 +265,7 @@ export default function AppShell({
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] transition-colors ${
+                className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] transition-colors ${
                   active
                     ? "text-foreground"
                     : "text-zinc-500 dark:text-zinc-400"
@@ -252,6 +273,7 @@ export default function AppShell({
               >
                 {item.icon(active)}
                 <span className={active ? "font-medium" : ""}>{item.label}</span>
+                <NavigationPendingIndicator compact />
               </Link>
             );
           })}

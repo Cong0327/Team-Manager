@@ -1,15 +1,17 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { getActiveMembership, getApprovedMembers } from "@/lib/teams";
+import { getActiveMembership } from "@/lib/teams";
 import { getTeamEvents, splitMatches } from "@/lib/events";
-import { PLATFORM_ADMIN_EMAIL } from "@/lib/dev-admin";
-import MemberRoleButton from "./member-role-button";
+import { getTeamPolicies } from "@/lib/policies";
+import { getLatestMatchMom } from "@/lib/records-server";
 import Calendar from "./calendar";
 import UpcomingRsvpCard from "./upcoming-rsvp-card";
 import UpcomingMatchCard from "./upcoming-match-card";
 import PastMatchesCard from "./past-matches-card";
 import TodoCard from "./todo-card";
 import QuickLinksCard from "./quick-links-card";
+import HomeRulesCard from "./home-rules-card";
+import LatestMomCard from "./latest-mom-card";
 
 // 진입점 라우팅: 비로그인 -> /login, 승인된 팀 없음 -> /team, 있음 -> 활성 팀 대시보드.
 // 여러 팀에 속해 있으면 사이드바 팀 스위처가 정한 active_team_id 쿠키 기준으로 활성 팀을 고른다.
@@ -22,13 +24,14 @@ export default async function Home() {
 
   const { team, role } = membership;
   // 서로 의존관계 없는 조회라 Promise.all로 동시에 보낸다(순차 await은 왕복 지연이 그대로 더해짐).
-  const [approvedMembers, events] = await Promise.all([
-    role === "owner" ? getApprovedMembers(team.id) : Promise.resolve([]),
+  const [events, policies] = await Promise.all([
     getTeamEvents(team.id),
+    getTeamPolicies(team.id),
   ]);
   const canManageEvents = role === "owner" || role === "manager";
 
   const { upcomingMatch, pastMatches } = splitMatches(events);
+  const latestMom = await getLatestMatchMom(team.id, pastMatches[0] ?? null);
 
   return (
     <main className="flex flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
@@ -39,26 +42,9 @@ export default async function Home() {
         )}
       </div>
 
-      {role === "owner" && approvedMembers.length > 0 && (
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 rounded border border-black/[.1] p-4 dark:border-white/[.15]">
-          <h2 className="text-sm font-semibold">팀원 관리</h2>
-          {approvedMembers.map((member) => (
-            <div key={member.id} className="flex items-center justify-between gap-3 text-sm">
-              <span>
-                {member.profile?.email ?? member.user_id}
-                {member.role === "owner" && (
-                  <span className="ml-2 text-xs text-zinc-500">
-                    ({member.profile?.email === PLATFORM_ADMIN_EMAIL ? "관리자" : "감독"})
-                  </span>
-                )}
-              </span>
-              {member.role !== "owner" && (
-                <MemberRoleButton memberId={member.id} currentRole={member.role} />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <HomeRulesCard policies={policies} />
+
+      <LatestMomCard summary={latestMom} />
 
       {/* 1. 캘린더 */}
       <Calendar
