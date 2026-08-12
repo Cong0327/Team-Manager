@@ -18,10 +18,10 @@ export default async function VotesPage() {
   const canManage = role === "owner" || role === "manager";
 
   return (
-    <main className="app-page flex flex-1 flex-col gap-5 px-3 py-4 sm:px-6 sm:py-8">
+    <main className="flex flex-1 flex-col gap-6 px-6 py-10">
       <div>
-        <p className="page-eyebrow">Team polls</p><h1 className="page-title">투표관리</h1>
-        <p className="page-subtitle">{team.name}</p>
+        <h1 className="text-xl font-semibold">투표관리</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{team.name}</p>
       </div>
 
       {canManage && <CreatePoll teamId={team.id} currentUserId={user.id} />}

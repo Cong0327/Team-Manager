@@ -17,11 +17,11 @@ export default async function BoardPage() {
   const posts = await getBoardPosts(team.id);
 
   return (
-    <main className="app-page flex flex-1 flex-col gap-5 px-3 py-4 sm:px-6 sm:py-8">
-      <div className="mx-auto flex w-full max-w-4xl items-center justify-between">
+    <main className="flex flex-1 flex-col gap-4 px-6 py-10">
+      <div className="mx-auto flex w-full max-w-2xl items-center justify-between">
         <div>
-          <p className="page-eyebrow">Community</p><h1 className="page-title">게시판</h1>
-          <p className="page-subtitle">
+          <h1 className="text-xl font-semibold">게시판</h1>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
             {team.name} · {posts.length}개 ·{" "}
             <Link href="/gallery" className="underline hover:text-foreground">
               사진첩 보기
@@ -30,7 +30,7 @@ export default async function BoardPage() {
         </div>
         <Link
           href="/board/new"
-          className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+          className="rounded bg-foreground px-4 py-2 text-sm font-medium text-background"
         >
           + 글쓰기
         </Link>
@@ -39,7 +39,7 @@ export default async function BoardPage() {
       {posts.length === 0 ? (
         <p className="mx-auto w-full max-w-2xl text-sm text-zinc-500">아직 게시글이 없습니다.</p>
       ) : (
-        <div className="content-card mx-auto w-full max-w-4xl overflow-x-auto p-2 sm:p-4">
+        <div className="mx-auto w-full max-w-2xl overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-black/[.1] text-left text-xs text-zinc-500 dark:border-white/[.15]">

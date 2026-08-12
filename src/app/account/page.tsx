@@ -49,11 +49,11 @@ export default async function AccountPage({
   const displayName = profile?.name || user.email;
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-3 py-4 sm:px-6 sm:py-8">
-      <div><p className="page-eyebrow">My account</p><h1 className="page-title">마이페이지</h1></div>
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-6 py-10">
+      <h1 className="text-xl font-semibold">마이페이지</h1>
 
       {/* 카드 1: 계정 (이메일 · 카카오톡 연동 · 로그아웃) */}
-      <section id="kakao" className="content-card scroll-mt-20 flex flex-col gap-4 p-4 sm:p-5">
+      <section id="kakao" className="scroll-mt-20 flex flex-col gap-4 rounded-2xl border border-black/[.08] p-5 dark:border-white/[.1]">
         <h2 className="text-sm font-semibold text-zinc-500">계정</h2>
 
         {kakaoParam === "linked" && (
@@ -80,7 +80,7 @@ export default async function AccountPage({
       </section>
 
       {/* 카드 2: 상세정보 (본인이 직접 수정) */}
-      <section id="profile" className="content-card scroll-mt-20 flex flex-col gap-4 p-4 sm:p-5">
+      <section id="profile" className="scroll-mt-20 flex flex-col gap-4 rounded-2xl border border-black/[.08] p-5 dark:border-white/[.1]">
         <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-zinc-500">상세정보</h2>
           {membership && (
@@ -127,7 +127,7 @@ export default async function AccountPage({
       </section>
 
       {/* 카드 3: 선수 기록 (읽기 전용) */}
-      <section className="content-card flex flex-col gap-4 p-4 sm:p-5">
+      <section className="flex flex-col gap-4 rounded-2xl border border-black/[.08] p-5 dark:border-white/[.1]">
         <h2 className="text-sm font-semibold text-zinc-500">선수 기록</h2>
 
         {membership ? (

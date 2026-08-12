@@ -44,10 +44,10 @@ export default async function RosterPage({
   }));
 
   return (
-    <main className="app-page flex flex-1 flex-col gap-5 px-3 py-4 sm:px-6 sm:py-8">
+    <main className="flex flex-1 flex-col gap-4 px-6 py-10">
       <div>
-        <p className="page-eyebrow">Roster</p><h1 className="page-title">명단관리</h1>
-        <p className="page-subtitle">
+        <h1 className="text-xl font-semibold">명단관리</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           {team.name} · {members.length}명
         </p>
       </div>

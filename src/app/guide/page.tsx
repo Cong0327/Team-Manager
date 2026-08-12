@@ -41,9 +41,9 @@ export default async function GuidePage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-10">
       <div>
-        <p className="page-eyebrow">Getting started</p>
-        <h1 className="page-title">사용법</h1>
-        <p className="page-subtitle">내 역할에 맞는 기능을 확인하고 바로 이동해 보세요.</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Getting started</p>
+        <h1 className="mt-1 text-2xl font-semibold">사용법</h1>
+        <p className="mt-1 text-sm text-zinc-500">내 역할에 맞는 기능을 확인하고 바로 이동해 보세요.</p>
       </div>
       <GuideHub steps={steps} defaultTab={defaultTab} />
     </main>
