@@ -248,6 +248,12 @@ declare
   is_manager boolean;
   can_edit_stats boolean;
 begin
+  -- 권한을 검증한 change_team_member_role RPC가 같은 트랜잭션 안에서 수행하는 변경만 통과시킨다.
+  -- 일반 클라이언트의 직접 UPDATE에는 이 트랜잭션 로컬 값이 없어 기존 검사를 그대로 적용한다.
+  if current_setting('app.role_change_authorized', true) = 'true' then
+    return new;
+  end if;
+
   select exists (
     select 1 from teams t where t.id = new.team_id and t.owner_id = auth.uid()
   ) or exists (
@@ -342,6 +348,8 @@ begin
 
     if v_target_user_id = v_current_owner_id then return; end if;
 
+    perform set_config('app.role_change_authorized', 'true', true);
+
     update team_members
       set role = 'member'
       where team_id = p_team_id and user_id = v_current_owner_id;
@@ -362,6 +370,7 @@ begin
     raise exception '현재 감독을 강등하려면 먼저 새 감독을 지정해 주세요.';
   end if;
 
+  perform set_config('app.role_change_authorized', 'true', true);
   update team_members set role = p_role where id = p_member_id;
 end;
 $$;
