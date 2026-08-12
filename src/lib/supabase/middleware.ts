@@ -35,8 +35,12 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // 세션 유효성 검사를 트리거해서 만료된 토큰을 갱신한다.
-  await supabase.auth.getUser();
+  // JWT 서명을 검증하면서 만료가 임박한 세션은 갱신한다.
+  // 비대칭 서명 키를 쓰는 프로젝트에서는 공개 키가 캐시된 뒤 로컬 검증되므로,
+  // 매 네비게이션마다 Auth 서버까지 왕복하는 getUser()보다 빠르다.
+  // 대칭 키이거나 WebCrypto를 사용할 수 없는 환경에서는 Supabase가 안전하게
+  // getUser() 검증으로 폴백하므로 인증 신뢰 수준은 낮아지지 않는다.
+  await supabase.auth.getClaims();
 
   return supabaseResponse;
 }

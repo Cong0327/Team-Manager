@@ -45,10 +45,11 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // 매 요청마다 로그인 상태를 확인해 상단바에 계정/로그인 UI를 다르게 보여준다.
   const user = await getCurrentUser();
-  // 상단바 표시 이름: 마이페이지에서 이름을 등록했으면 이름, 안 했으면 이메일(AccountMenu에서 결정).
-  const profile = user ? await getMyProfile() : null;
-
-  const memberships = user ? await getMyTeamMemberships() : [];
+  // 프로필과 멤버십은 서로 의존하지 않으므로 동시에 조회한다. 두 함수 내부의
+  // getCurrentUser()는 요청 단위 cache()를 공유해 추가 Auth 왕복을 만들지 않는다.
+  const [profile, memberships] = user
+    ? await Promise.all([getMyProfile(), getMyTeamMemberships()])
+    : [null, []];
   const approvedTeams = memberships
     .filter((m) => m.status === "approved")
     .map((m) => ({ id: m.team.id, name: m.team.name }));
