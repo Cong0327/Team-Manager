@@ -2,9 +2,7 @@ import type { LatestMatchMomSummary } from "@/lib/records-server";
 import { formatMatchRecordDate, formatMatchRecordScore } from "@/lib/records";
 
 export default function LatestMomCard({ summary }: { summary: LatestMatchMomSummary | null }) {
-  if (!summary) return null;
-
-  const opponent = summary.match.opponent_name ?? "상대팀";
+  const opponent = summary?.match.opponent_name ?? "상대팀";
 
   return (
     <section className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-black/[.08] bg-white p-5 shadow-sm dark:border-white/[.1] dark:bg-white/[.03]">
@@ -22,13 +20,19 @@ export default function LatestMomCard({ summary }: { summary: LatestMatchMomSumm
               </div>
             </div>
           </div>
-          <div className="text-right text-xs text-zinc-500">
-            <p>{formatMatchRecordDate(summary.match.starts_at)} · vs {opponent}</p>
-            <p className="mt-0.5 font-bold">{formatMatchRecordScore(summary.match)}</p>
-          </div>
+          {summary && (
+            <div className="text-right text-xs text-zinc-500">
+              <p>{formatMatchRecordDate(summary.match.starts_at)} · vs {opponent}</p>
+              <p className="mt-0.5 font-bold">{formatMatchRecordScore(summary.match)}</p>
+            </div>
+          )}
         </div>
 
-        {summary.winners.length === 0 ? (
+        {!summary ? (
+          <div className="mt-4 rounded-xl border border-dashed border-black/[.1] bg-black/[.02] p-3 text-center text-sm text-zinc-500 dark:border-white/[.12] dark:bg-white/[.03]">
+            아직 완료된 경기 기록이 없습니다.
+          </div>
+        ) : summary.winners.length === 0 ? (
           <div className="mt-4 rounded-xl border border-dashed border-black/[.1] bg-black/[.02] p-3 text-center text-sm text-zinc-500 dark:border-white/[.12] dark:bg-white/[.03]">
             아직 MOM 투표 결과가 없습니다.
           </div>
