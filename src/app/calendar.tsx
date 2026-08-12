@@ -117,7 +117,7 @@ export default function Calendar({
             return (
               <div
                 key={`empty-${i}`}
-                className="min-h-24 border-b border-r border-black/[.05] dark:border-white/[.06]"
+                className="min-h-32 border-b border-r border-black/[.05] dark:border-white/[.06]"
               />
             );
           }
@@ -129,7 +129,7 @@ export default function Calendar({
           return (
             <div
               key={day}
-              className={`group flex min-h-24 flex-col gap-1 border-b border-r border-black/[.05] p-2 transition-colors hover:bg-black/[.02] dark:border-white/[.06] dark:hover:bg-white/[.04] ${
+              className={`group flex min-h-32 flex-col gap-1 border-b border-r border-black/[.05] p-1 sm:p-2 transition-colors hover:bg-black/[.02] dark:border-white/[.06] dark:hover:bg-white/[.04] ${
                 isToday ? "bg-foreground/[.04] dark:bg-white/[.06]" : ""
               }`}
             >
@@ -163,11 +163,14 @@ export default function Calendar({
                   <button
                     key={event.id}
                     onClick={() => setModal({ date: cellDate, event })}
-                    className="flex items-center gap-1 rounded bg-foreground/[.08] px-1.5 py-0.5 text-left leading-tight text-foreground hover:bg-foreground/[.15] dark:bg-white/[.1] dark:hover:bg-white/[.18]"
+                    className="relative flex min-w-0 flex-col rounded bg-foreground/[.08] px-1 py-1 text-left leading-tight text-foreground hover:bg-foreground/[.15] sm:px-1.5 dark:bg-white/[.1] dark:hover:bg-white/[.18]"
                   >
+                    <span className="truncate pl-2 text-[9px] text-zinc-500 sm:text-[10px]">
+                      {formatTime(event.starts_at)} ~ {formatTime(event.ends_at)}
+                    </span>
                     {/* 유형 구분 도트: 경기=빨강, 훈련=초록, 기타=회색 */}
                     <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                      className={`absolute left-1 top-1.5 h-1.5 w-1.5 rounded-full ${
                         event.event_type === "match"
                           ? "bg-red-500"
                           : event.event_type === "training"
@@ -176,10 +179,11 @@ export default function Calendar({
                       }`}
                       aria-hidden
                     />
-                    {/* 경기는 상대팀명을, 그 외는 제목을 보여준다. */}
-                    <span className="truncate text-[11px]">
-                      {event.event_type === "match" ? `vs ${event.opponent_name}` : event.title} (
-                      {formatTime(event.starts_at)})
+                    <span className="mt-0.5 truncate text-[10px] font-medium sm:text-[11px]">
+                      {event.event_type === "match" ? `vs ${event.opponent_name}` : event.title}
+                    </span>
+                    <span className="mt-0.5 truncate text-[9px] text-zinc-500 sm:text-[10px]">
+                      참여 {event.attending_count}명
                     </span>
                   </button>
                 ))}
