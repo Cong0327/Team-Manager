@@ -6,7 +6,6 @@ import { getTeamGoalAssistStats, getPlayerGoalAssistStats } from "@/lib/season-s
 import { getTeamSeasons } from "@/lib/seasons-server";
 import InviteLinkCard from "./invite-link-card";
 import RosterTable from "./roster-table";
-import SeasonSelect from "./season-select";
 
 // 명단관리: 별도 등록 없이 팀에 가입 승인된 사람을 그대로 명단으로 보여준다.
 // 조회는 승인된 팀원 전원, 포지션/골/어시스트 편집은 owner·manager, 역할 변경·제명은
@@ -57,11 +56,11 @@ export default async function RosterPage({
         <InviteLinkCard teamId={team.id} initialInvite={invite} currentUserId={user.id} />
       )}
 
-      <SeasonSelect seasons={seasons} selectedSeasonId={selectedSeason?.id ?? null} />
-
       <RosterTable
         teamId={team.id}
         members={rosterWithStats}
+        seasons={seasons}
+        selectedSeasonId={selectedSeason?.id ?? null}
         viewerRole={role}
         viewerEmail={user.email ?? null}
         currentSeasonName={selectedSeason?.name ?? null}

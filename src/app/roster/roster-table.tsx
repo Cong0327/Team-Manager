@@ -8,6 +8,7 @@ import { POSITIONS, MAX_POSITIONS } from "@/lib/positions";
 import { PLATFORM_ADMIN_EMAIL } from "@/lib/dev-admin";
 import BottomSheet from "@/components/bottom-sheet";
 import type { RosterMember, TeamMemberRole } from "@/lib/teams";
+import type { Season } from "@/lib/seasons";
 
 // 골/어시스트는 시즌 기준 합계(현재 시즌 지정 안 됐으면 0) + 전체 누적을 함께 보여준다.
 type RosterMemberWithStats = RosterMember & {
@@ -48,8 +49,16 @@ function roleLabel(member: RosterMember) {
 }
 
 function formatDate(iso: string) {
-  const d = new Date(iso);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  // 가입일은 접속 기기의 현지 시간이 아니라 팀 운영 기준인 한국 날짜로 항상 고정한다.
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(new Date(iso))
+    .replaceAll(". ", ".")
+    .replace(/\.$/, "");
 }
 
 // 명단관리 화면. 선수는 별도 등록 없이 팀에 가입 승인된 사람 그대로다.
@@ -61,12 +70,16 @@ function formatDate(iso: string) {
 export default function RosterTable({
   teamId,
   members,
+  seasons,
+  selectedSeasonId,
   viewerRole,
   viewerEmail,
   currentSeasonName,
 }: {
   teamId: string;
   members: RosterMemberWithStats[];
+  seasons: Season[];
+  selectedSeasonId: string | null;
   viewerRole: TeamMemberRole;
   viewerEmail: string | null;
   currentSeasonName: string | null;
@@ -76,6 +89,7 @@ export default function RosterTable({
   const [draftPositions, setDraftPositions] = useState<string[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
+  const [nameQuery, setNameQuery] = useState("");
   // 모바일 목록은 한 줄짜리 압축 리스트만 보여주고, 탭하면 이 id의 상세를 바텀시트로 연다.
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
 
@@ -134,6 +148,14 @@ export default function RosterTable({
   const roleOptions = isPlatformAdmin
     ? (["owner", "manager", "member"] as const)
     : (["manager", "member"] as const);
+
+  // 검색 대상은 이름만이다. 이메일, 포지션, 등번호는 의도적으로 포함하지 않는다.
+  const normalizedQuery = nameQuery.trim().toLocaleLowerCase("ko-KR");
+  const filteredMembers = normalizedQuery
+    ? members.filter((member) =>
+        (member.profile?.name ?? "").toLocaleLowerCase("ko-KR").includes(normalizedQuery)
+      )
+    : members;
 
   const kick = async (member: RosterMember) => {
     const label = member.profile?.name || member.profile?.email || "이 팀원";
@@ -216,13 +238,44 @@ export default function RosterTable({
       </button>
     );
 
-  const openMember = members.find((m) => m.id === openMemberId) ?? null;
+  const openMember = filteredMembers.find((m) => m.id === openMemberId) ?? null;
 
   return (
     <>
+      <div className="flex items-center justify-between gap-3">
+        <select
+          value={selectedSeasonId ?? ""}
+          onChange={(e) => router.push(e.target.value ? `/roster?season=${e.target.value}` : "/roster")}
+          aria-label="기록 시즌 선택"
+          className="min-w-0 rounded border border-black/[.15] px-3 py-2 text-sm dark:border-white/[.2]"
+        >
+          <option value="">전체 기간</option>
+          {seasons.map((season) => (
+            <option key={season.id} value={season.id}>
+              {season.name}{season.is_current ? " ★" : ""}
+            </option>
+          ))}
+        </select>
+
+        <label className="relative ml-auto w-full max-w-56">
+          <span className="sr-only">이름 검색</span>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400">
+            <circle cx="8.5" cy="8.5" r="5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="m12.2 12.2 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <input
+            type="search"
+            value={nameQuery}
+            onChange={(e) => setNameQuery(e.target.value)}
+            placeholder="이름 검색"
+            className="w-full rounded border border-black/[.15] py-2 pl-9 pr-3 text-sm dark:border-white/[.2]"
+          />
+        </label>
+      </div>
+
       {/* 모바일(sm 미만): 한 줄짜리 압축 목록. 탭하면 상세가 바텀시트로 열린다. */}
       <div className="flex flex-col gap-2 sm:hidden">
-        {members.map((m) => (
+        {filteredMembers.map((m) => (
           <button
             key={m.id}
             onClick={() => setOpenMemberId(m.id)}
@@ -363,7 +416,7 @@ export default function RosterTable({
             </tr>
           </thead>
           <tbody>
-            {members.map((m) => {
+            {filteredMembers.map((m) => {
               const statsEditable = canEditStats(m);
               const roleEditable = canManageRole(m);
               const busy = loadingId === m.id;
@@ -416,6 +469,11 @@ export default function RosterTable({
           </tbody>
         </table>
       </div>
+      {filteredMembers.length === 0 && (
+        <p className="rounded-xl border border-dashed border-black/[.12] px-4 py-8 text-center text-sm text-zinc-500 dark:border-white/[.15]">
+          해당 이름의 팀원이 없습니다.
+        </p>
+      )}
       {roleError && <p className="text-sm text-red-600">{roleError}</p>}
     </>
   );
